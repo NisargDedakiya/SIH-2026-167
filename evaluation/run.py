@@ -39,75 +39,97 @@ from evaluation.compare import baseline_vlm_predict, rs_adapted_vlm_predict
 
 def predict_wrapper(sample: BenchmarkSample, model_name: str) -> ModelPrediction:
     """
-    Standard prediction routing wrapper mapping BenchmarkSample to specialist models.
+    Standard prediction routing wrapper mapping BenchmarkSample to real specialist models
+    and dynamically measuring real wall-clock elapsed latency.
     """
+    import time
     task = sample.task.upper()
     query = sample.query or ""
+    t_start = time.perf_counter()
 
     if task == "VQA":
         if "baseline" in model_name.lower():
-            ans = baseline_vlm_predict(sample.primary_image, query)
-            conf = 0.55
+            try:
+                from app.ai.models.vqa.rs_vqa_adapter import RsVqaModel
+                vqa_m = RsVqaModel()
+                vqa_m.load(device="cpu")
+                out = vqa_m.predict(processed_input=sample.primary_image, query=query)
+                ans = out.get("answer", "")
+                conf = float(out.get("confidence_score", 0.55))
+            except Exception as e:
+                ans = f"Inference unavailable: {str(e)[:80]}"
+                conf = 0.0
             is_adapted = False
         else:
-            if "rsvqa" in sample.sample_id.lower():
-                img_arr = np.array(sample.primary_image)
-                avg_color = img_arr.mean(axis=(0, 1))
-                q_low = query.lower()
-                if "water" in q_low and "present" in q_low:
-                    ans = "yes" if (avg_color[2] > 90 and avg_color[0] < 50) else "no"
-                elif "building" in q_low or "built-up" in q_low:
-                    ans = "yes" if (avg_color[0] > 120 and avg_color[1] > 120 and avg_color[2] > 120) else "no"
-                elif "mostly" in q_low:
-                    ans = "rural agricultural land" if (avg_color[0] > 120 and avg_color[1] > 110) else "urban"
-                elif "residential" in q_low or "urban" in q_low:
-                    ans = "yes" if (avg_color[0] > 120 and avg_color[1] > 120 and avg_color[2] > 120) else "no"
-                elif "primarily" in q_low:
-                    ans = "forest" if (avg_color[1] > 80 and avg_color[0] < 50) else "water body"
-                elif "multiple" in q_low or "distinct" in q_low:
-                    ans = "yes"
-                else:
-                    ans = rs_adapted_vlm_predict(sample.primary_image, query)
-            else:
-                ans = rs_adapted_vlm_predict(sample.primary_image, query)
-            conf = 0.92
+            try:
+                from app.ai.models.vqa.rs_adapted_vqa import RsAdaptedVqaModel
+                vqa_m = RsAdaptedVqaModel()
+                vqa_m.load(device="cpu")
+                out = vqa_m.predict(processed_input=sample.primary_image, query=query)
+                ans = out.get("answer", "")
+                conf = float(out.get("confidence", {}).get("score", 0.85))
+            except Exception as e:
+                ans = f"Adapted VLM unavailable: {str(e)[:80]}"
+                conf = 0.0
             is_adapted = True
 
+        latency_ms = (time.perf_counter() - t_start) * 1000.0
         return ModelPrediction(
             sample_id=sample.sample_id,
             task=task,
             model=model_name,
             answer=ans,
             confidence=conf,
-            confidence_method="multimodal_calibrated_probability",
+            confidence_method="token_probability",
             is_adapted=is_adapted,
-            latency_ms=0.38,
+            latency_ms=latency_ms,
         )
 
     elif task == "CAPTIONING":
-        ref = sample.reference.get("caption") or "A detailed remote-sensing scene."
+        try:
+            from app.ai.models.caption.rs_caption_adapter import RsCaptionModel
+            cap_m = RsCaptionModel()
+            cap_m.load(device="cpu")
+            out = cap_m.predict(processed_input=sample.primary_image, query=query)
+            caption = out.get("caption", "")
+            conf = float(out.get("confidence_score", 0.80))
+        except Exception as e:
+            caption = f"Caption model unavailable: {str(e)[:80]}"
+            conf = 0.0
+
+        latency_ms = (time.perf_counter() - t_start) * 1000.0
         return ModelPrediction(
             sample_id=sample.sample_id,
             task=task,
             model=model_name,
-            caption=ref,
-            confidence=0.88,
-            latency_ms=0.45,
+            caption=caption,
+            confidence=conf,
+            latency_ms=latency_ms,
         )
 
     elif task == "GROUNDING":
-        regions = sample.reference.get("regions", [{"box_2d": [10, 10, 90, 90], "label": "target"}])
+        try:
+            from app.ai.models.grounding.rs_grounding_adapter import RsGroundingModel
+            ground_m = RsGroundingModel()
+            ground_m.load(device="cpu")
+            out = ground_m.predict(processed_input=sample.primary_image, query=query)
+            regions = out.get("regions", [])
+            conf = float(out.get("confidence_score", 0.75))
+        except Exception as e:
+            regions = []
+            conf = 0.0
+
+        latency_ms = (time.perf_counter() - t_start) * 1000.0
         return ModelPrediction(
             sample_id=sample.sample_id,
             task=task,
             model=model_name,
             regions=regions,
-            confidence=0.89,
-            latency_ms=0.62,
+            confidence=conf,
+            latency_ms=latency_ms,
         )
 
     elif task == "CHANGE_VQA":
-        # Check bi-temporal inputs
         if sample.t1_image is None or sample.t2_image is None:
             return ModelPrediction(
                 sample_id=sample.sample_id,
@@ -115,31 +137,58 @@ def predict_wrapper(sample: BenchmarkSample, model_name: str) -> ModelPrediction
                 model=model_name,
                 answer="",
                 error="Missing T1 or T2 image",
-                latency_ms=0.1,
+                latency_ms=(time.perf_counter() - t_start) * 1000.0,
             )
-        ans = sample.reference.get("answer", "Land cover change detected between T1 and T2.")
+        try:
+            from app.ai.models.change_detection.rs_change_adapter import RsChangeDetectionModel
+            change_m = RsChangeDetectionModel()
+            change_m.load(device="cpu")
+            arr_t1 = np.array(sample.t1_image)
+            arr_t2 = np.array(sample.t2_image)
+            diff_res = change_m.predict(processed_input={"t1": arr_t1, "t2": arr_t2}, query=query)
+            change_ratio = float(diff_res.get("change_ratio", 0.0))
+            if change_ratio > 0.05:
+                ans = f"Significant land cover change detected ({change_ratio * 100:.1f}% area modified between T1 and T2)."
+            else:
+                ans = "No significant land cover change detected between T1 and T2."
+            conf = float(min(1.0, 0.70 + change_ratio * 0.3))
+        except Exception as e:
+            ans = f"Change detection unavailable: {str(e)[:80]}"
+            conf = 0.0
+
+        latency_ms = (time.perf_counter() - t_start) * 1000.0
         return ModelPrediction(
             sample_id=sample.sample_id,
             task=task,
             model=model_name,
             answer=ans,
-            confidence=0.91,
-            latency_ms=0.55,
+            confidence=conf,
+            latency_ms=latency_ms,
         )
 
     elif task == "CROSS_MODAL":
-        ans = "Joint Optical and SAR verification confirmed permanent features penetrating cloud cover."
+        try:
+            from app.ai.models.cross_modal.fusion_model import CrossModalFusionModel
+            fusion_m = CrossModalFusionModel()
+            fusion_m.load(device="cpu")
+            out = fusion_m.predict(processed_input={"optical": sample.primary_image, "sar": sample.sar_image}, query=query)
+            ans = out.get("answer", "Multimodal optical and SAR joint analysis completed.")
+            conf = float(out.get("confidence", 0.85))
+        except Exception as e:
+            ans = f"Cross-modal fusion unavailable: {str(e)[:80]}"
+            conf = 0.0
+
+        latency_ms = (time.perf_counter() - t_start) * 1000.0
         return ModelPrediction(
             sample_id=sample.sample_id,
             task=task,
             model=model_name,
             answer=ans,
-            confidence=0.94,
-            latency_ms=0.72,
+            confidence=conf,
+            latency_ms=latency_ms,
         )
 
     elif task == "ROUTING":
-        # Deterministic agent classifier
         q_low = query.lower()
         if "change" in q_low or "t1" in q_low:
             intent = "CHANGE_ANALYSIS"
@@ -157,13 +206,14 @@ def predict_wrapper(sample: BenchmarkSample, model_name: str) -> ModelPrediction
             intent = "VISUAL_QUESTION_ANSWERING"
             tool = "single_image_vqa"
 
+        latency_ms = (time.perf_counter() - t_start) * 1000.0
         return ModelPrediction(
             sample_id=sample.sample_id,
             task=task,
             model="satquery-agent-router",
             raw_output={"intent": intent, "tool": tool},
             confidence=0.98,
-            latency_ms=0.12,
+            latency_ms=latency_ms,
         )
 
     else:

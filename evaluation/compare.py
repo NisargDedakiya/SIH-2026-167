@@ -20,134 +20,52 @@ from evaluation.rsvqa.runner import RSVQARunner
 from evaluation.terminology.runner import DomainTerminologyRunner
 
 
+_baseline_model_singleton = None
+_adapted_model_singleton = None
+
+
+def get_baseline_model():
+    global _baseline_model_singleton
+    if _baseline_model_singleton is None:
+        from app.ai.models.vqa.rs_vqa_adapter import RsVqaModel
+        _baseline_model_singleton = RsVqaModel()
+        _baseline_model_singleton.load(device="cpu")
+    return _baseline_model_singleton
+
+
+def get_adapted_model():
+    global _adapted_model_singleton
+    if _adapted_model_singleton is None:
+        from app.ai.models.vqa.rs_adapted_vqa import RsAdaptedVqaModel
+        _adapted_model_singleton = RsAdaptedVqaModel()
+        _adapted_model_singleton.load(device="cpu")
+    return _adapted_model_singleton
+
+
 def baseline_vlm_predict(image, query: str) -> str:
     """
-    Simulates / wraps the unadapted generic foundation model (no remote-sensing fine-tuning).
-    Outputs generic web-photography descriptions lacking remote-sensing vocabulary.
+    Executes the unadapted generic foundation model (Salesforce/blip-vqa-base)
+    without remote-sensing domain fine-tuning.
     """
-    q_low = query.lower()
-    img_arr = np.array(image)
-    avg_color = img_arr.mean(axis=(0, 1))  # [R, G, B]
-
-    # Generic labels without CORINE / RS precision
-    if avg_color[2] > 90 and avg_color[0] < 50:
-        if "water" in q_low:
-            return "yes, there is water"
-        return "a blue surface outdoors"
-    elif avg_color[1] > 80 and avg_color[0] < 50:
-        if "forest" in q_low or "vegetat" in q_low:
-            return "trees and grass"
-        return "outdoor green terrain"
-    elif avg_color[0] > 120 and avg_color[1] > 120 and avg_color[2] > 120:
-        if "urban" in q_low or "infrastructure" in q_low or "building" in q_low:
-            return "buildings and streets"
-        return "a gray ground"
-    elif avg_color[0] > 120 and avg_color[1] > 110:
-        if "agricultural" in q_low or "crop" in q_low:
-            return "fields"
-        return "farmland area"
-    # Domain terminology probes
-    if "scattering" in q_low or "radar" in q_low:
-        return "outdoor dark water surface"
-    elif "dual-polarization" in q_low or "sentinel-1" in q_low:
-        return "radio frequency channels"
-    elif "spectral bands" in q_low or "b02" in q_low:
-        return "red, green, blue color channels"
-    elif "spectral index" in q_low or "ndvi" in q_low:
-        return "plant greenness index"
-    elif "corine" in q_low:
-        return "houses and buildings"
-    elif "near-infrared" in q_low or "nir" in q_low:
-        return "dark outdoor surface"
-    elif "ground sampling distance" in q_low or "gsd" in q_low:
-        return "camera image resolution"
-    elif "cirrus" in q_low or "cloud" in q_low:
-        return "bright white sky clouds"
-    elif "interference" in q_low or "speckle" in q_low:
-        return "grainy picture noise"
-    elif "woodland" in q_low or "scrub" in q_low:
-        return "bushes and trees"
-    elif "ecosystems" in q_low:
-        return "trees outdoors"
-    else:
-        return "an aerial view of land"
+    try:
+        model = get_baseline_model()
+        res = model.predict(processed_input=image, query=query)
+        return res.get("answer", "")
+    except Exception as e:
+        return f"[Baseline model inference error: {str(e)[:80]}]"
 
 
 def rs_adapted_vlm_predict(image, query: str) -> str:
     """
-    RS-Adapted Model (satquery-rs-v1, fine-tuned on BigEarthNet v2.0 remote-sensing data).
-    Integrates CORINE land cover semantics, Sentinel spectral knowledge, and remote-sensing VQA terminology.
+    Executes the RS-Adapted Model (satquery-rs-v1, fine-tuned on BigEarthNet v2.0 remote-sensing data).
+    Integrates genuine LoRA adapter weights on top of the vision-language backbone.
     """
-    q_low = query.lower()
-    img_arr = np.array(image)
-    avg_color = img_arr.mean(axis=(0, 1))  # [R, G, B]
-
-    # Specific remote-sensing domain terminology responses (Part 23)
-    if "scattering" in q_low or ("radar" in q_low and "calm water" in q_low):
-        return "Specular reflection resulting in very low radar backscatter."
-    elif "dual-polarization" in q_low or ("sentinel-1" in q_low and "iw" in q_low):
-        return "VV and VH polarizations."
-    elif "spectral bands" in q_low and ("blue" in q_low or "10m" in q_low):
-        return "B02, B03, B04, and B08."
-    elif "spectral index" in q_low or "ndvi" in q_low:
-        return "Normalized Difference Vegetation Index (NDVI)."
-    elif "corine" in q_low and "infrastructure" in q_low:
-        return "Urban fabric and industrial or commercial units."
-    elif "dark in near-infrared" in q_low or ("nir" in q_low and "water" in q_low):
-        return "Water bodies exhibit strong near-infrared absorption with minimal specular reflectance."
-    elif "fragmented crop" in q_low or "rural farming" in q_low:
-        return "Arable land and complex cultivation patterns."
-    elif "cirrus" in q_low or "cloud cover" in q_low:
-        return "Band 10 (cirrus band) at 1.375 micrometers."
-    elif "ground sampling distance" in q_low or "gsd" in q_low:
-        return "10 meters spatial resolution per pixel."
-    elif "granular interference" in q_low or "coherent synthetic" in q_low:
-        return "Speckle noise requiring multi-looking or spatial filtering."
-    elif "woodland ecosystems" in q_low:
-        return "Broad-leaved forest, coniferous forest, and mixed woodland."
-    elif "bushy or scrub" in q_low or "transitional" in q_low:
-        return "Transitional woodland, shrub."
-
-    if avg_color[2] > 90 and avg_color[0] < 50:
-        # Water bodies & inland wetlands
-        if "water" in q_low or "permanent" in q_low or "wetland" in q_low:
-            return "Yes, water bodies and inland wetlands are present."
-        if "dominant" in q_low or "primarily" in q_low:
-            return "Water bodies"
-        return "Water bodies exhibiting low specular backscatter and high near-infrared absorption."
-
-    elif avg_color[1] > 80 and avg_color[0] < 50:
-        # Forest canopies
-        if "vegetat" in q_low or "forest" in q_low or "canopy" in q_low:
-            return "Broad-leaved forest and mixed forest canopy."
-        if "primarily" in q_low:
-            return "forest"
-        if "building" in q_low:
-            return "no"
-        return "Coniferous forest and mixed woodland vegetation."
-
-    elif avg_color[0] > 120 and avg_color[1] > 120 and avg_color[2] > 120:
-        # Urban fabric & industrial
-        if "infrastructure" in q_low or "urban" in q_low or "built" in q_low or "residential" in q_low:
-            return "Urban fabric and industrial or commercial units."
-        if "presence" in q_low or "present" in q_low:
-            return "yes"
-        return "Urban fabric characterized by high spectral reflectance and cardinal structural geometry."
-
-    elif avg_color[0] > 120 and avg_color[1] > 110:
-        # Agricultural land / complex cultivation
-        if "agricultural" in q_low or "crop" in q_low or "arable" in q_low or "rural" in q_low:
-            return "Arable land and complex cultivation patterns."
-        if "mostly" in q_low:
-            return "rural agricultural land"
-        return "Complex cultivation patterns with active crop cycles and pastures."
-
-    elif avg_color[0] > 150 and avg_color[1] > 140:
-        # Coastal & dunes
-        return "Beaches, dunes, sands and coastal wetlands."
-
-    else:
-        return "Natural grassland and transitional woodland, shrub."
+    try:
+        model = get_adapted_model()
+        res = model.predict(processed_input=image, query=query)
+        return res.get("answer", "")
+    except Exception as e:
+        return f"[RS-Adapted model inference error: {str(e)[:80]}]"
 
 
 def main():

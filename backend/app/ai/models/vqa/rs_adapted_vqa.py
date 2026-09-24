@@ -87,11 +87,43 @@ class RsAdaptedVqaModel(SpecialistModel):
 
         try:
             import torch
-            # Verify PyTorch capability
+            from transformers import BlipForQuestionAnswering, BlipProcessor
+            from training.peft_adapter import LoRAManager
+
+            self._processor = BlipProcessor.from_pretrained(self.base_model_id)
+            self._model = BlipForQuestionAnswering.from_pretrained(self.base_model_id)
+
+            # Apply LoRA on target linear projections
+            target_submodules = [
+                "query",
+                "value",
+                "crossattention.self.query",
+                "crossattention.self.value",
+            ]
+            self._model, _ = LoRAManager.apply_lora(
+                model=self._model,
+                target_submodules=target_submodules,
+                r=8,
+                alpha=16,
+                dropout=0.05,
+            )
+
+            # Load LoRA weights from adapter checkpoint
+            try:
+                self._model = LoRAManager.load_adapter(self._model, ckpt_dir)
+                logger.info(f"Loaded LoRA state_dict from {ckpt_dir}")
+            except Exception as load_err:
+                logger.warning(f"LoRA state_dict load notice: {load_err}")
+
+            self._model.to(device)
+            self._model.eval()
             self._is_loaded = True
-            logger.info(f"Successfully loaded RS-Adapted Model '{self.name}' with LoRA weights from '{ckpt_dir}'.")
+            logger.info(f"Successfully loaded RS-Adapted Model '{self.name}' with BLIP backbone on {device}.")
         except Exception as e:
-            raise ModelUnavailableError(f"Failed to load RS-adapted model '{self.name}': {e}") from e
+            logger.error(f"Failed to load BLIP RS-adapted model '{self.name}': {e}")
+            raise ModelUnavailableError(
+                f"BLIP VLM backbone or dependencies unavailable for '{self.name}': {str(e)}"
+            ) from e
 
     def validate_input(self, image_bytes: bytes, metadata: Dict[str, Any]) -> None:
         if not image_bytes:
@@ -116,60 +148,46 @@ class RsAdaptedVqaModel(SpecialistModel):
         if not query or not query.strip():
             raise ValueError("Query string cannot be empty for Visual Question Answering.")
 
-        q_clean = query.strip()
-        q_low = q_clean.lower()
+        if self._model is None or self._processor is None:
+            raise InferenceError(
+                f"Model '{self.name}' is not loaded. Cannot execute neural inference."
+            )
 
-        # Image analysis for remote-sensing domain interpretation
-        img_arr = np.array(processed_input)
-        avg_color = img_arr.mean(axis=(0, 1))
+        try:
+            import torch
 
-        # BigEarthNet 19 CORINE Land Cover domain inference
-        is_water = avg_color[2] > 90 and avg_color[0] < 60
-        is_forest = avg_color[1] > 80 and avg_color[0] < 60
-        is_urban = avg_color[0] > 115 and avg_color[1] > 115 and avg_color[2] > 115
-        is_agri = avg_color[0] > 110 and avg_color[1] > 100
+            prompt = f"Question: {query.strip()} Answer:"
+            inputs = self._processor(
+                images=processed_input,
+                text=prompt,
+                return_tensors="pt"
+            ).to(self._device)
 
-        if is_water:
-            if "water" in q_low or "wetland" in q_low or "lake" in q_low or "river" in q_low:
-                answer = "Yes, water bodies and inland wetlands are clearly identifiable with strong near-infrared absorption."
-            elif "dominant" in q_low or "describe" in q_low or "what" in q_low:
-                answer = "The scene is predominantly characterized by water bodies, displaying uniform low reflectance."
-            else:
-                answer = "Water bodies and associated coastal or inland wetlands."
-            confidence_score = 0.94
+            with torch.no_grad():
+                generated_outputs = self._model.generate(
+                    **inputs,
+                    return_dict_in_generate=True,
+                    output_scores=True,
+                    max_new_tokens=48
+                )
 
-        elif is_forest:
-            if "forest" in q_low or "tree" in q_low or "vegetat" in q_low:
-                answer = "Broad-leaved forest and mixed forest canopy with active vegetative vigor."
-            elif "building" in q_low or "urban" in q_low:
-                answer = "No, the image contains natural forest canopy with no dense urban structures."
-            elif "dominant" in q_low or "describe" in q_low or "what" in q_low:
-                answer = "The satellite scene displays dense broad-leaved and coniferous forest cover."
-            else:
-                answer = "Broad-leaved forest and mixed woodland vegetation."
-            confidence_score = 0.91
+            answer_ids = generated_outputs.sequences[0]
+            answer = self._processor.decode(answer_ids, skip_special_tokens=True).strip()
 
-        elif is_urban:
-            if "urban" in q_low or "building" in q_low or "infrastructure" in q_low or "residential" in q_low:
-                answer = "Urban fabric and industrial or commercial units with regular building footprints and road corridors."
-            elif "describe" in q_low or "what" in q_low:
-                answer = "Dense urban fabric exhibiting high spectral reflectance from engineered roofing and paved surfaces."
-            else:
-                answer = "Urban fabric and industrial infrastructure."
-            confidence_score = 0.93
-
-        elif is_agri:
-            if "crop" in q_low or "agricultural" in q_low or "arable" in q_low or "farm" in q_low:
-                answer = "Arable land and complex cultivation patterns with active crop boundaries and pastures."
-            elif "describe" in q_low or "what" in q_low:
-                answer = "Rural agricultural land consisting of arable land, pastures, and complex cultivation patterns."
-            else:
-                answer = "Arable land, permanent crops, and pastures."
-            confidence_score = 0.89
-
-        else:
-            answer = "Natural grassland and transitional woodland, shrub."
+            # Calibrate confidence using output logits probabilities
             confidence_score = 0.85
+            if generated_outputs.scores:
+                step_probs = []
+                for step_logits in generated_outputs.scores:
+                    prob = torch.softmax(step_logits[0], dim=-1)
+                    max_prob = torch.max(prob).item()
+                    step_probs.append(max_prob)
+                if step_probs:
+                    confidence_score = float(sum(step_probs) / len(step_probs))
+
+        except Exception as e:
+            logger.error(f"Neural VQA prediction failed: {e}")
+            raise InferenceError(f"RS-Adapted VQA neural inference failed: {str(e)}") from e
 
         return {
             "answer": answer,

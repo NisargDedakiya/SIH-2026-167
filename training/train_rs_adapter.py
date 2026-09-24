@@ -135,7 +135,7 @@ def collate_fn(batch: List[Dict[str, Any]], vocab: Dict[str, int]) -> Dict[str, 
 def main():
     parser = argparse.ArgumentParser(description="SatQuery AI Remote-Sensing Adapter Trainer")
     parser.add_argument("--config", type=str, default="training/configs/rs_adapter.yaml", help="Path to training config YAML")
-    parser.add_argument("--dry-run", action="store_true", help="Perform sanity checks and dry-run validation without training")
+    parser.add_argument("--backbone", type=str, choices=["blip", "lightweight", "auto"], default="auto", help="Base model backbone ('blip' for Salesforce/blip-vqa-base, 'lightweight' for CPU prototype)")
     args = parser.parse_args()
 
     # Load Configuration
@@ -195,12 +195,39 @@ def main():
     print(f"  Vocabulary Size: {len(vocab)} domain-specific tokens")
 
     # 2. Model Initialization & LoRA Injection
-    model = LightweightRSVLM(vocab_size=max(len(vocab) + 50, 1000), hidden_dim=256)
+    use_blip = (args.backbone == "blip")
+    actual_base_name = config["model"]["name"]
+
+    if args.backbone == "auto" or use_blip:
+        try:
+            from transformers import BlipForQuestionAnswering, BlipProcessor
+            print(f"\n[Initializing Foundation VLM Backbone: {config['model']['name']}]")
+            blip_proc = BlipProcessor.from_pretrained(config["model"]["name"])
+            model = BlipForQuestionAnswering.from_pretrained(config["model"]["name"])
+            target_submodules = config["lora"].get("target_modules", ["query", "value"])
+            actual_base_name = config["model"]["name"]
+            use_blip = True
+            print("  Successfully loaded HuggingFace BLIP foundation weights.")
+        except Exception as e:
+            if args.backbone == "blip":
+                print(f"Error: Unable to download/load BLIP weights: {e}")
+                sys.exit(1)
+            print(f"  Notice: BLIP weights download unavailable ({e}). Initializing LightweightRSVLM prototype.")
+            model = LightweightRSVLM(vocab_size=max(len(vocab) + 50, 1000), hidden_dim=256)
+            actual_base_name = "LightweightRSVLM-Prototype-256d"
+            target_submodules = ["feed_forward", "lm_head"]
+            use_blip = False
+    else:
+        model = LightweightRSVLM(vocab_size=max(len(vocab) + 50, 1000), hidden_dim=256)
+        actual_base_name = "LightweightRSVLM-Prototype-256d"
+        target_submodules = ["feed_forward", "lm_head"]
+        use_blip = False
+
     total_base_params = sum(p.numel() for p in model.parameters())
 
     model, lora_stats = LoRAManager.apply_lora(
         model=model,
-        target_submodules=["feed_forward", "lm_head"],
+        target_submodules=target_submodules,
         r=config["lora"]["r"],
         alpha=config["lora"]["alpha"],
         dropout=config["lora"]["dropout"],
@@ -209,6 +236,7 @@ def main():
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     print(f"\n[Model & LoRA Configuration]")
+    print(f"  Base Architecture: {actual_base_name}")
     print(f"  Base Parameters (Frozen): {total_base_params:,}")
     print(f"  Adapter Parameters (Trainable): {trainable_params:,} ({round(trainable_params/total_base_params*100, 2)}%)")
     print(f"  Injected LoRA Layers: {lora_stats['injected_layers']}")
@@ -337,7 +365,7 @@ def main():
     # Save model manifest
     model_manifest = {
         "model_id": config["model"]["adapter_id"],
-        "base_model": config["model"]["name"],
+        "base_model": actual_base_name,
         "adapter_type": "lora",
         "dataset": config["data"]["dataset"],
         "dataset_version": config["data"]["dataset_version"],
@@ -356,7 +384,7 @@ def main():
     with open(output_dir / "README.md", "w", encoding="utf-8") as f:
         f.write(f"""# SatQuery RS Adapter Checkpoint — {config['model']['adapter_id']}
 
-- **Base Model**: `{config['model']['name']}`
+- **Base Model**: `{actual_base_name}`
 - **Adapter**: Low-Rank Adaptation (LoRA, rank={config['lora']['r']}, alpha={config['lora']['alpha']})
 - **Dataset**: `{config['data']['dataset']} v{config['data']['dataset_version']}`
 - **Validation Accuracy**: `{metrics['validation_accuracy'] * 100:.2f}%`

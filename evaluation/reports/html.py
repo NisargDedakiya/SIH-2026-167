@@ -27,12 +27,15 @@ def generate_html_report(
     # Render Task Results Cards
     task_cards_html = []
     for task_name, res in task_results.items():
-        metrics_html = "".join(
-            f"<div class='p-2 rounded bg-slate-900 border border-slate-800 text-xs'>"
-            f"<div class='text-slate-400 font-mono text-[10px]'>{k}</div>"
-            f"<div class='text-emerald-400 font-semibold text-sm'>{v}</div></div>"
-            for k, v in res.get("metrics", {}).items()
-        )
+        if res.get("status") == "NOT RUN" or not res.get("metrics"):
+            metrics_html = f"<div class='p-2.5 rounded bg-amber-950/40 border border-amber-800/50 text-xs text-amber-300 col-span-3'>NOT RUN &bull; {res.get('reason', 'Dataset pending local acquisition')}</div>"
+        else:
+            metrics_html = "".join(
+                f"<div class='p-2 rounded bg-slate-900 border border-slate-800 text-xs'>"
+                f"<div class='text-slate-400 font-mono text-[10px]'>{k}</div>"
+                f"<div class='text-emerald-400 font-semibold text-sm'>{v}</div></div>"
+                for k, v in res.get("metrics", {}).items()
+            )
         task_cards_html.append(f"""
         <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
           <div class="flex items-center justify-between">
@@ -42,7 +45,7 @@ def generate_html_report(
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">{metrics_html}</div>
           <div class="text-[11px] text-slate-400 flex justify-between">
             <span>Model: <span class="text-slate-200 font-mono">{res.get('model', 'Specialist')}</span></span>
-            <span>Latency: <span class="text-slate-200 font-mono">{res.get('latency_ms', 0)} ms</span></span>
+            <span>Latency: <span class="text-slate-200 font-mono">{res.get('latency_ms', '-')} ms</span></span>
           </div>
         </div>
         """)

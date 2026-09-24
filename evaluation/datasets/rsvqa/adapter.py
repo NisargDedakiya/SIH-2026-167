@@ -66,44 +66,97 @@ class RSVQAAdapter(BenchmarkDataset):
         },
     ]
 
-    def __init__(self):
-        self.is_available = True
+    def __init__(self, data_dir: Optional[Path] = None, allow_synthetic_fixtures: bool = False):
+        self.data_dir = data_dir or Path("data/benchmarks/rsvqa")
+        self.allow_synthetic_fixtures = allow_synthetic_fixtures
+        self.is_available = False
         self.availability_reason = None
         self._is_loaded = False
         self.split = "test"
+        self._samples: List[Dict[str, Any]] = []
 
     def load(self, split: str = "test") -> None:
         self.split = split
-        self._is_loaded = True
+        real_path = self.data_dir if self.data_dir.is_absolute() else (Path.cwd() / self.data_dir)
+        annotation_file = real_path / f"{split}_annotations.json"
+
+        if annotation_file.exists():
+            try:
+                import json
+                with open(annotation_file, "r", encoding="utf-8") as f:
+                    self._samples = json.load(f)
+                self.is_available = True
+                self._is_loaded = True
+                self.availability_reason = None
+                return
+            except Exception as e:
+                self.is_available = False
+                self.availability_reason = f"Error reading RSVQA annotations: {e}"
+                return
+
+        if self.allow_synthetic_fixtures:
+            self.is_available = True
+            self.availability_reason = "RUNNING_SYNTHETIC_SMOKE_TEST_FIXTURE (Not real benchmark data)"
+            self._is_loaded = True
+        else:
+            self.is_available = False
+            self.availability_reason = (
+                f"Dataset files not found at '{real_path}'. "
+                f"Real RSVQA benchmark evaluation requires acquiring the official dataset "
+                f"per docs/phase8/dataset_acquisition.md."
+            )
+            self._is_loaded = False
 
     def iter_samples(self, limit: Optional[int] = None) -> Iterator[BenchmarkSample]:
         if not self._is_loaded:
             self.load(self.split)
 
-        count = 0
-        for item in self.RSVQA_SAMPLES:
-            if limit and count >= limit:
-                break
+        if not self.is_available:
+            return
 
-            h, w = (128, 128)
-            arr = np.zeros((h, w, 3), dtype=np.uint8)
-            arr[:, :] = item["dominant_color"]
-            np.random.seed(abs(hash(item["id"])) % (2**32))
-            noise = np.random.normal(0, 8, (h, w, 3)).astype(np.int16)
-            arr = np.clip(arr.astype(np.int16) + noise, 0, 255).astype(np.uint8)
-            img = Image.fromarray(arr)
+        if self._samples:
+            count = 0
+            for item in self._samples:
+                if limit and count >= limit:
+                    break
+                img_path = Path(item["image_path"])
+                if not img_path.exists():
+                    continue
+                img = Image.open(img_path).convert("RGB")
+                yield BenchmarkSample(
+                    sample_id=item["id"],
+                    task="VQA",
+                    inputs={"image": img, "optical": img},
+                    query=item["query"],
+                    reference={"answer": item["reference"], "question_type": item.get("type", "general")},
+                    metadata={"question_type": item.get("type", "general"), "benchmark": "RSVQA", "is_synthetic": False},
+                )
+                count += 1
+            return
 
-            sample = BenchmarkSample(
-                sample_id=item["id"],
-                task="VQA",
-                inputs={"image": img, "optical": img},
-                query=item["query"],
-                reference={"answer": item["reference"], "question_type": item["type"]},
-                metadata={"question_type": item["type"], "benchmark": "RSVQA"},
-            )
+        if self.allow_synthetic_fixtures:
+            count = 0
+            for item in self.RSVQA_SAMPLES:
+                if limit and count >= limit:
+                    break
 
-            yield sample
-            count += 1
+                h, w = (128, 128)
+                arr = np.zeros((h, w, 3), dtype=np.uint8)
+                arr[:, :] = item["dominant_color"]
+                np.random.seed(abs(hash(item["id"])) % (2**32))
+                noise = np.random.normal(0, 8, (h, w, 3)).astype(np.int16)
+                arr = np.clip(arr.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+                img = Image.fromarray(arr)
+
+                yield BenchmarkSample(
+                    sample_id=item["id"],
+                    task="VQA",
+                    inputs={"image": img, "optical": img},
+                    query=item["query"],
+                    reference={"answer": item["reference"], "question_type": item["type"]},
+                    metadata={"question_type": item["type"], "benchmark": "RSVQA", "is_synthetic": True},
+                )
+                count += 1
 
     def get_metadata(self) -> Dict[str, Any]:
         return {

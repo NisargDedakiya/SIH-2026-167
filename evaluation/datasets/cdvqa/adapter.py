@@ -65,66 +65,130 @@ class CDVQAAdapter(BenchmarkDataset):
         },
     ]
 
-    def __init__(self):
-        self.is_available = True
+    def __init__(self, data_dir: Optional[Path] = None, allow_synthetic_fixtures: bool = False):
+        self.data_dir = data_dir or Path("data/benchmarks/cdvqa")
+        self.allow_synthetic_fixtures = allow_synthetic_fixtures
+        self.is_available = False
         self.availability_reason = None
         self._is_loaded = False
         self.split = "test"
+        self._samples: List[Dict[str, Any]] = []
 
     def load(self, split: str = "test") -> None:
         self.split = split
-        self._is_loaded = True
+        real_path = self.data_dir if self.data_dir.is_absolute() else (Path.cwd() / self.data_dir)
+        annotation_file = real_path / f"{split}_annotations.json"
+
+        if annotation_file.exists():
+            try:
+                import json
+                with open(annotation_file, "r", encoding="utf-8") as f:
+                    self._samples = json.load(f)
+                self.is_available = True
+                self._is_loaded = True
+                self.availability_reason = None
+                return
+            except Exception as e:
+                self.is_available = False
+                self.availability_reason = f"Error reading CDVQA annotations: {e}"
+                return
+
+        if self.allow_synthetic_fixtures:
+            self.is_available = True
+            self.availability_reason = "RUNNING_SYNTHETIC_SMOKE_TEST_FIXTURE (Not real benchmark data)"
+            self._is_loaded = True
+        else:
+            self.is_available = False
+            self.availability_reason = (
+                f"Dataset files not found at '{real_path}'. "
+                f"Real CDVQA benchmark evaluation requires acquiring the official dataset "
+                f"per docs/phase8/dataset_acquisition.md."
+            )
+            self._is_loaded = False
 
     def iter_samples(self, limit: Optional[int] = None) -> Iterator[BenchmarkSample]:
         if not self._is_loaded:
             self.load(self.split)
 
-        count = 0
-        for item in self.CDVQA_PAIRS:
-            if limit and count >= limit:
-                break
+        if not self.is_available:
+            return
 
-            h, w = (128, 128)
-            # Synthesize deterministic T1
-            arr_t1 = np.zeros((h, w, 3), dtype=np.uint8)
-            arr_t1[:, :] = item["t1_color"]
-            np.random.seed(abs(hash(item["id"] + "_t1")) % (2**32))
-            noise_t1 = np.random.normal(0, 6, (h, w, 3)).astype(np.int16)
-            arr_t1 = np.clip(arr_t1.astype(np.int16) + noise_t1, 0, 255).astype(np.uint8)
-            img_t1 = Image.fromarray(arr_t1)
+        if self._samples:
+            count = 0
+            for item in self._samples:
+                if limit and count >= limit:
+                    break
+                p1, p2 = Path(item["image_t1"]), Path(item["image_t2"])
+                if not (p1.exists() and p2.exists()):
+                    continue
+                img_t1 = Image.open(p1).convert("RGB")
+                img_t2 = Image.open(p2).convert("RGB")
+                yield BenchmarkSample(
+                    sample_id=item["id"],
+                    task="CHANGE_VQA",
+                    inputs={
+                        "image_t1": img_t1,
+                        "image_t2": img_t2,
+                        "time_t1": item.get("time_t1", "T1"),
+                        "time_t2": item.get("time_t2", "T2"),
+                    },
+                    query=item["query"],
+                    reference={
+                        "answer": item["reference"],
+                        "change_type": item.get("type", "change"),
+                    },
+                    metadata={
+                        "change_type": item.get("type", "change"),
+                        "benchmark": "CDVQA",
+                        "is_synthetic": False,
+                    },
+                )
+                count += 1
+            return
 
-            # Synthesize deterministic T2
-            arr_t2 = np.zeros((h, w, 3), dtype=np.uint8)
-            arr_t2[:, :] = item["t2_color"]
-            np.random.seed(abs(hash(item["id"] + "_t2")) % (2**32))
-            noise_t2 = np.random.normal(0, 6, (h, w, 3)).astype(np.int16)
-            arr_t2 = np.clip(arr_t2.astype(np.int16) + noise_t2, 0, 255).astype(np.uint8)
-            img_t2 = Image.fromarray(arr_t2)
+        if self.allow_synthetic_fixtures:
+            count = 0
+            for item in self.CDVQA_PAIRS:
+                if limit and count >= limit:
+                    break
 
-            sample = BenchmarkSample(
-                sample_id=item["id"],
-                task="CHANGE_VQA",
-                inputs={
-                    "image_t1": img_t1,
-                    "image_t2": img_t2,
-                    "time_t1": item["time_t1"],
-                    "time_t2": item["time_t2"],
-                },
-                query=item["query"],
-                reference={
-                    "answer": item["reference"],
-                    "change_type": item["type"],
-                },
-                metadata={
-                    "change_type": item["type"],
-                    "benchmark": "CDVQA",
-                    "t1_date": item["time_t1"],
-                    "t2_date": item["time_t2"],
-                },
-            )
+                h, w = (128, 128)
+                arr_t1 = np.zeros((h, w, 3), dtype=np.uint8)
+                arr_t1[:, :] = item["t1_color"]
+                np.random.seed(abs(hash(item["id"] + "_t1")) % (2**32))
+                noise_t1 = np.random.normal(0, 6, (h, w, 3)).astype(np.int16)
+                arr_t1 = np.clip(arr_t1.astype(np.int16) + noise_t1, 0, 255).astype(np.uint8)
+                img_t1 = Image.fromarray(arr_t1)
 
-            yield sample
-            count += 1
+                arr_t2 = np.zeros((h, w, 3), dtype=np.uint8)
+                arr_t2[:, :] = item["t2_color"]
+                np.random.seed(abs(hash(item["id"] + "_t2")) % (2**32))
+                noise_t2 = np.random.normal(0, 6, (h, w, 3)).astype(np.int16)
+                arr_t2 = np.clip(arr_t2.astype(np.int16) + noise_t2, 0, 255).astype(np.uint8)
+                img_t2 = Image.fromarray(arr_t2)
+
+                yield BenchmarkSample(
+                    sample_id=item["id"],
+                    task="CHANGE_VQA",
+                    inputs={
+                        "image_t1": img_t1,
+                        "image_t2": img_t2,
+                        "time_t1": item["time_t1"],
+                        "time_t2": item["time_t2"],
+                    },
+                    query=item["query"],
+                    reference={
+                        "answer": item["reference"],
+                        "change_type": item["type"],
+                    },
+                    metadata={
+                        "change_type": item["type"],
+                        "benchmark": "CDVQA",
+                        "is_synthetic": True,
+                    },
+                )
+                count += 1
+
 
     def get_metadata(self) -> Dict[str, Any]:
         return {

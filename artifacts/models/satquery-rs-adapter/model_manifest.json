@@ -1,7 +1,8 @@
 {
   "model_id": "satquery-rs-v1",
-  "base_model": "Salesforce/blip-vqa-base",
+  "base_model": "LightweightRSVLM-Prototype-256d (Target: Salesforce/blip-vqa-base)",
   "adapter_type": "lora",
+  "training_status": "prototype_pipeline_verification",
   "dataset": "BigEarthNet",
   "dataset_version": "2.0",
   "tasks": [

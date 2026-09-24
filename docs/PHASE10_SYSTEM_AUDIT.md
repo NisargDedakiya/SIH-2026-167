@@ -19,14 +19,14 @@ All components have been inspected for architectural coherence, interface consis
 
 | Component | Modules | Status | Assessment & Safeguards |
 | :--- | :--- | :---: | :--- |
-| **Ingestion & Geospatial** | `backend/app/geospatial/`, `backend/app/services/image_validation.py` | **Healthy** | Preserves native CRS, affine transforms, and NoData bounds. Validates GeoTIFF, TIFF, PNG, JPEG without assuming EPSG:4326. |
-| **AI Runtime & Models** | `backend/app/ai/`, `backend/app/models/` | **Healthy** | Model registry pattern with explicit task metadata, device auto-selection (CUDA -> CPU fallback), and controlled batching. |
+| **Ingestion & Geospatial** | `backend/app/geospatial/`, `backend/app/services/image_service.py` | **Healthy** | Preserves native CRS, affine transforms, and NoData bounds. Validates GeoTIFF, TIFF, PNG, JPEG without assuming EPSG:4326. |
+| **AI Runtime & Models** | `backend/app/ai/`, `backend/app/ai/models/` | **Healthy** | Model registry pattern with explicit task metadata, device auto-selection (CUDA -> CPU fallback), and controlled batching. |
 | **Agentic Controller** | `backend/app/agent/` | **Healthy** | 5-phase deterministic pipeline (classify, resolve, plan, execute, aggregate). Pure sandbox dispatch; no arbitrary user code execution. |
-| **Evidence Engine** | `backend/app/evidence/`, `backend/app/grounding/` | **Healthy** | Generates verifiable bounding boxes, pixel/geospatial bounds, change mask overlays, and cross-modal fusion indicators. |
+| **Evidence Engine** | `backend/app/evidence/` | **Healthy** | Generates verifiable bounding boxes, pixel/geospatial bounds, change mask overlays, and cross-modal fusion indicators. |
 | **Temporal Engine** | `backend/app/temporal/` | **Healthy** | Enforces $T_1 < T_2$, spatial overlap thresholding, bilinear grid resampling, and fail-closed alignment error handling. |
 | **Cross-Modal Engine** | `backend/app/cross_modal/` | **Healthy** | Automatic optical vs. SAR modality detection, log-scale SAR backscatter normalization, joint reasoning, and disagreement tracking. |
-| **Adaptation Pipeline** | `backend/app/adaptation/` | **Healthy** | BigEarthNet v2.0 multimodal ingestion, PEFT LoRA adapter injection, train/val/test leakage prevention, and model cards. |
-| **Evaluation Engine** | `backend/app/evaluation/` | **Healthy** | VRSBench, RSVQA, CDVQA, and BigEarthNet adapters. 4-category error taxonomy and ECE calibration metrics without fabricated numbers. |
+| **Adaptation Pipeline** | `training/`, `backend/training/` | **Hardened** | BigEarthNet v2.0 multimodal ingestion, PEFT LoRA adapter injection, train/val/test leakage prevention, and model cards. |
+| **Evaluation Engine** | `evaluation/` | **Hardened** | VRSBench, RSVQA, CDVQA, and BigEarthNet adapters. 4-category error taxonomy and ECE calibration metrics without fabricated numbers. |
 | **Report Engine** | `backend/app/reports/` | **Healthy** | Single normalized `AnalysisReport` model driving Interactive HTML, vector PDF (ReportLab), machine-readable JSON, and sanitized ZIP packages. |
 | **Frontend UI** | `frontend/app/`, `frontend/components/` | **Healthy** | Next.js 14 App Router, Tailwind/Vanilla CSS, zero hydration errors, complete TypeScript type-safety (`npx tsc` 0 errors). |
 
