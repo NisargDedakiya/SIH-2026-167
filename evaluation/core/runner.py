@@ -54,7 +54,8 @@ class EvaluationRunner:
         run_id = f"eval_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
         started_at = datetime.now(timezone.utc).isoformat()
 
-        # Check dataset availability
+        # Initialize dataset split and check availability
+        self.dataset.load(split=self.split)
         if not self.dataset.is_available:
             return {
                 "run_id": run_id,
@@ -64,11 +65,11 @@ class EvaluationRunner:
                 "task": self.evaluator.task_name,
                 "model": self.model_name,
                 "metrics": {},
+                "total_samples": 0,
+                "latency": {"mean_ms": 0.0, "median_ms": 0.0, "p95_ms": 0.0},
                 "started_at": started_at,
                 "completed_at": datetime.now(timezone.utc).isoformat(),
             }
-
-        self.dataset.load(split=self.split)
 
         sample_records: List[Dict[str, Any]] = []
         per_sample_metrics: List[Dict[str, float]] = []

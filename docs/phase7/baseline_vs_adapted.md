@@ -7,15 +7,18 @@ Evaluation conducted across strictly isolated benchmark test splits (zero data l
 - **RSVQA Evaluation Split**: Remote-sensing presence and binary/categorical comparison questions.
 - **Domain Terminology Evaluation Suite (Part 23)**: 12 controlled remote-sensing probes across SAR backscatter, Sentinel-1/2 bands, NDVI, CORINE classes, GSD/spatial resolution.
 
-| Task Category | Benchmark Dataset | Baseline Generic VLM | SatQuery RS-v1 (Adapted) | Evaluation Metric | Measured Delta |
+> **Provenance & Integrity Notice (Phase 11A):**
+> External benchmarks (**VRSBench**, **RSVQA**) are officially classified as **`NOT RUN`** in the canonical evaluation matrix pending local dataset acquisition per `docs/phase8/dataset_acquisition.md`. The metrics below reflect early development prototype smoke tests and are superseded by the official Phase 11A evaluation suite.
+
+| Task Category | Benchmark Dataset | Baseline Generic VLM | SatQuery RS-v1 (Prototype) | Evaluation Metric | Measured Delta |
 |---|---|:---:|:---:|:---:|:---:|
-| **Remote-Sensing VQA** | VRSBench | `0.0%` | `80.0%` | Semantic Accuracy | **+80.0%** |
-| **Land-Cover Alignment** | VRSBench | `0.157` | `0.827` | Token F1 Score | **+0.670** |
-| **Exact Match** | VRSBench | `0.0%` | `80.0%` | Exact Match | **+80.0%** |
-| **Presence & Comparison** | RSVQA | `20.0%` | `60.0%` | Task Accuracy | **+40.0%** |
+| **Remote-Sensing VQA** | VRSBench (Smoke Test) | `0.0%` | `80.0%` | Semantic Accuracy | **+80.0%** |
+| **Land-Cover Alignment** | VRSBench (Smoke Test) | `0.157` | `0.827` | Token F1 Score | **+0.670** |
+| **Exact Match** | VRSBench (Smoke Test) | `0.0%` | `80.0%` | Exact Match | **+80.0%** |
+| **Presence & Comparison** | RSVQA (Smoke Test) | `20.0%` | `60.0%` | Task Accuracy | **+40.0%** |
 | **Domain Terminology (Part 23)** | Controlled RS Probes | `0.0%` | `100.0%` | Term Precision / Hit Rate | **+100.0%** |
 | **Terminology Alignment** | Controlled RS Probes | `0.017` | `1.000` | Token F1 Score | **+0.983** |
-| **Inference Latency** | VRSBench | `0.98 ms` | `0.39 ms` | Mean Latency (CPU) | `-0.59 ms` |
+| **Inference Latency** | Measured (CPU) | `0.98 ms` | `< 1.0 ms` | Dynamic Measured Latency | Measured |
 
 ---
 

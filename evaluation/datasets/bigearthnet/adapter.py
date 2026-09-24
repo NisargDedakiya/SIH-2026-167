@@ -58,6 +58,23 @@ class BigEarthNetBenchmarkAdapter(BenchmarkDataset):
 
             opt_path = Path(item["optical_path"])
             sar_path = Path(item.get("sar_path", ""))
+            root_dir = Path(__file__).resolve().parent.parent.parent.parent
+
+            if not opt_path.exists():
+                parts = opt_path.parts
+                if "data" in parts:
+                    idx = parts.index("data")
+                    rel_p = root_dir / Path(*parts[idx:])
+                    if rel_p.exists():
+                        opt_path = rel_p
+
+            if sar_path and not sar_path.exists():
+                parts = sar_path.parts
+                if "data" in parts:
+                    idx = parts.index("data")
+                    rel_s = root_dir / Path(*parts[idx:])
+                    if rel_s.exists():
+                        sar_path = rel_s
 
             # Open image safely
             img = None
@@ -67,7 +84,7 @@ class BigEarthNetBenchmarkAdapter(BenchmarkDataset):
                 img = Image.new("RGB", (120, 120), color=(80, 120, 60))
 
             sar_img = None
-            if sar_path.exists():
+            if sar_path and sar_path.exists():
                 sar_img = Image.open(sar_path).convert("RGB")
 
             labels = item.get("labels", [])

@@ -151,24 +151,24 @@ def generate_html_report(
   <!-- Executive Summary -->
   <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
     <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
-      <div class="text-xs text-slate-400 uppercase font-mono">VRSBench VQA</div>
-      <div class="text-2xl font-bold text-emerald-400 mt-1">80.0%</div>
-      <div class="text-[11px] text-slate-400 mt-0.5">Token F1: 0.827</div>
+      <div class="text-xs text-slate-400 uppercase font-mono">VRSBench Benchmark</div>
+      <div class="text-2xl font-bold text-amber-400 mt-1">NOT RUN</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">Dataset not available locally</div>
     </div>
     <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
-      <div class="text-xs text-slate-400 uppercase font-mono">RSVQA Accuracy</div>
-      <div class="text-2xl font-bold text-emerald-400 mt-1">60.0%</div>
-      <div class="text-[11px] text-slate-400 mt-0.5">Presence & Counting</div>
+      <div class="text-xs text-slate-400 uppercase font-mono">RSVQA Benchmark</div>
+      <div class="text-2xl font-bold text-amber-400 mt-1">NOT RUN</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">Zero synthetic metrics reported</div>
     </div>
     <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
       <div class="text-xs text-slate-400 uppercase font-mono">Agent Routing</div>
-      <div class="text-2xl font-bold text-cyan-400 mt-1">{agent_results.get('intent_accuracy', 100.0)}%</div>
-      <div class="text-[11px] text-slate-400 mt-0.5">Tool Resolution: {agent_results.get('tool_accuracy', 100.0)}%</div>
+      <div class="text-2xl font-bold text-cyan-400 mt-1">{agent_results.get('intent_accuracy', 0.0)}%</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">Tool Resolution: {agent_results.get('tool_accuracy', 0.0)}%</div>
     </div>
     <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
-      <div class="text-xs text-slate-400 uppercase font-mono">Mean CPU Latency</div>
-      <div class="text-2xl font-bold text-teal-400 mt-1">{performance_results.get('mean_ms', 0.39)} ms</div>
-      <div class="text-[11px] text-slate-400 mt-0.5">P95: {performance_results.get('p95_ms', 0.52)} ms</div>
+      <div class="text-xs text-slate-400 uppercase font-mono">Measured CPU Latency</div>
+      <div class="text-2xl font-bold text-teal-400 mt-1">{performance_results.get('mean_ms', 0.0)} ms</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">P95: {performance_results.get('p95_ms', 0.0)} ms ({performance_results.get('device', 'CPU')})</div>
     </div>
   </section>
 

@@ -172,11 +172,15 @@ class LoRAManager:
     def load_adapter(
         cls,
         model: nn.Module,
-        adapter_dir: str | Path
+        adapter_dir: str | Path,
+        strict_validation: bool = True
     ) -> nn.Module:
         """
         Loads saved LoRA weights into an existing model that has LoRA layers injected.
+        Never silently ignores architecture mismatches; strictly verifies parameter keys and shapes.
         """
+        from app.ai.exceptions import AdapterArchitectureMismatchError
+
         adapter_path = Path(adapter_dir)
         weights_file = adapter_path / "adapter_model.bin"
         if not weights_file.exists():
@@ -186,5 +190,50 @@ class LoRAManager:
             raise FileNotFoundError(f"Adapter weights file not found in {adapter_dir}")
 
         state_dict = torch.load(weights_file, map_location="cpu")
-        model.load_state_dict(state_dict, strict=False)
+
+        # Identify all injected LoRA parameters on the active model
+        model_lora_params = {
+            name: param for name, param in model.named_parameters()
+            if "lora_A" in name or "lora_B" in name
+        }
+
+        if not model_lora_params:
+            raise AdapterArchitectureMismatchError(
+                "Cannot load LoRA weights: Model has no injected LoRA layers. "
+                "Call LoRAManager.apply_lora() before loading an adapter checkpoint."
+            )
+
+        ckpt_keys = set(state_dict.keys())
+        model_keys = set(model_lora_params.keys())
+
+        missing_keys = list(model_keys - ckpt_keys)
+        unexpected_keys = list(ckpt_keys - model_keys)
+
+        if strict_validation and (unexpected_keys or missing_keys):
+            raise AdapterArchitectureMismatchError(
+                f"ADAPTER_ARCHITECTURE_MISMATCH: Adapter checkpoint does not match model architecture. "
+                f"Missing LoRA keys: {len(missing_keys)}, Unexpected keys: {len(unexpected_keys)}.",
+                missing_keys=missing_keys,
+                unexpected_keys=unexpected_keys
+            )
+
+        # Validate tensor shapes
+        if strict_validation:
+            for key in model_keys.intersection(ckpt_keys):
+                ckpt_shape = list(state_dict[key].shape)
+                model_shape = list(model_lora_params[key].shape)
+                if ckpt_shape != model_shape:
+                    raise AdapterArchitectureMismatchError(
+                        f"ADAPTER_ARCHITECTURE_MISMATCH: Tensor shape mismatch for '{key}': "
+                        f"checkpoint has {ckpt_shape}, model has {model_shape}.",
+                        unexpected_keys=[f"{key}:{ckpt_shape}"]
+                    )
+
+        # Apply parameters directly to the model's LoRA state
+        with torch.no_grad():
+            for name, param in model_lora_params.items():
+                if name in state_dict:
+                    param.copy_(state_dict[name])
+
         return model
+

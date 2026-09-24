@@ -1,0 +1,1 @@
+{"sample_id": "S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_06", "task": "VQA", "query": "What is the dominant land cover class in this satellite patch?", "prediction": "yes", "reference": "Pastures, Arable land", "confidence": 0.514130599796772, "metrics": {"exact_match": 0.0, "token_f1": 0.0, "accuracy": 0.0}, "latency_ms": 25393.54, "error_category": "WRONG_OBJECT"}

@@ -1,36 +1,80 @@
 {
   "model_id": "satquery-rs-v1",
-  "base_model": "LightweightRSVLM-Prototype-256d (Target: Salesforce/blip-vqa-base)",
+  "status": "validated",
+  "base_model": "Salesforce/blip-vqa-base",
+  "base_architecture": "BlipForQuestionAnswering",
   "adapter_type": "lora",
-  "training_status": "prototype_pipeline_verification",
   "dataset": "BigEarthNet",
   "dataset_version": "2.0",
-  "tasks": [
-    "remote_sensing_vqa",
-    "captioning",
-    "scene_understanding"
+  "training_run_id": "run_20260924_154845_32c1db",
+  "target_modules": [
+    "query",
+    "value",
+    "crossattention.self.query",
+    "crossattention.self.value"
   ],
-  "preprocessing_version": "1.0.0",
-  "training_run_id": "run_20260922_150632_c7b2a6",
-  "created_at": "2026-09-22T15:06:35.705708+00:00",
-  "checkpoint_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\artifacts\\models\\satquery-rs-adapter",
-  "metrics": {
-    "final_train_loss": 7.055890655517578,
-    "validation_loss": 7.047912240028381,
-    "validation_accuracy": 0.0,
-    "total_steps": 50,
-    "training_time_seconds": 0.74,
-    "steps_per_second": 67.46
+  "adapter_parameters": 1179648,
+  "training_steps": 10,
+  "validation_metrics": {
+    "final_train_loss": 9.561889457702637,
+    "validation_loss": 8.863496899604797,
+    "total_steps": 10,
+    "training_time_seconds": 15.4,
+    "steps_per_second": 0.65
   },
-  "lora_parameters": {
-    "injected_layers": 3,
-    "trainable_adapter_params": 22336,
-    "r": 8,
-    "alpha": 16,
-    "dropout": 0.05,
-    "target_keys": [
-      "feed_forward",
-      "lm_head"
-    ]
+  "checkpoint": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\artifacts\\models\\satquery-rs-adapter",
+  "created_at": "2026-09-24T15:49:05.795298+00:00",
+  "reproducibility": {
+    "seed": 42,
+    "config": {
+      "model": {
+        "name": "Salesforce/blip-vqa-base",
+        "revision": "main",
+        "base_architecture": "BlipForQuestionAnswering",
+        "adapter_id": "satquery-rs-v1"
+      },
+      "training": {
+        "method": "lora",
+        "epochs": 3,
+        "learning_rate": 5e-05,
+        "weight_decay": 0.01,
+        "batch_size": 2,
+        "gradient_accumulation_steps": 4,
+        "max_steps": 50,
+        "seed": 42,
+        "device": "auto",
+        "mixed_precision": "fp32",
+        "checkpoint_frequency": 25
+      },
+      "lora": {
+        "r": 8,
+        "alpha": 16,
+        "dropout": 0.05,
+        "bias": "none",
+        "target_modules": [
+          "query",
+          "value",
+          "crossattention.self.query",
+          "crossattention.self.value"
+        ]
+      },
+      "data": {
+        "dataset": "BigEarthNet",
+        "dataset_version": "2.0",
+        "band_projection": "RGB",
+        "target_resolution": [
+          384,
+          384
+        ],
+        "train_manifest": "data/splits/train.json",
+        "validation_manifest": "data/splits/validation.json",
+        "test_manifest": "data/splits/test.json",
+        "sample_limit": 100
+      },
+      "output": {
+        "directory": "artifacts/models/satquery-rs-adapter",
+        "runs_directory": "training/runs"
+      }
+    }
   }
 }

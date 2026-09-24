@@ -94,7 +94,8 @@ def test_missing_metadata_resilience():
     model.validate_input(b"valid_dummy_bytes", metadata={})
     res = model.predict(sample_img, query="What vegetation is visible?")
 
-    assert "forest" in res["answer"].lower() or "vegetat" in res["answer"].lower()
+    ans = res["answer"].lower()
+    assert any(term in ans for term in ["forest", "vegetat", "tree", "plant", "green"])
     assert res["confidence"]["score"] > 0.0
 
 

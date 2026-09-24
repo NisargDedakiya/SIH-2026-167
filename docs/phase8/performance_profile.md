@@ -1,45 +1,34 @@
 # SatQuery AI Performance & Latency Profile
 
-## Latency, Throughput, and Hardware Reproducibility
+## Dynamic Latency Measurement & Hardware Reproducibility (Phase 11A)
 
-This document records the latency distribution, hardware footprint, and profiling metrics for the **SatQuery AI Benchmark Suite**.
+This document records the latency distribution, hardware footprint, and profiling methodology for **SatQuery AI**.
 
----
-
-## 1. Latency Distribution Across Specialists
-
-All models were evaluated under standardized timing wrappers (`EvaluationRunner`) measuring end-to-end inference time per sample:
-
-| Task / Component | Evaluated Model | Mean Latency | Median (p50) | Tail (p95) | Tail (p99) |
-| :--- | :--- | :---: | :---: | :---: | :---: |
-| **Agent Router** | `satquery-agent-router` | **0.12 ms** | 0.11 ms | 0.15 ms | 0.18 ms |
-| **VQA Specialist** | `satquery-rs-v1` | **0.38 ms** | 0.35 ms | 0.42 ms | 0.48 ms |
-| **Captioning Specialist** | `remote-sensing-caption` | **0.45 ms** | 0.42 ms | 0.50 ms | 0.55 ms |
-| **Change Specialist** | `bi-temporal-change` | **0.55 ms** | 0.52 ms | 0.61 ms | 0.68 ms |
-| **Grounding Specialist** | `remote-sensing-grounding` | **0.62 ms** | 0.59 ms | 0.70 ms | 0.78 ms |
-| **Cross-Modal Fusion** | `optical-sar-fusion` | **0.72 ms** | 0.68 ms | 0.81 ms | 0.89 ms |
-| **Aggregate Suite** | **All Models Combined** | **0.39 ms** | **0.35 ms** | **0.55 ms** | **0.68 ms** |
+> **Integrity Requirement:**
+> In accordance with Phase 11A standards, all reported latencies are dynamically computed via `time.perf_counter()` around actual model executions. No hard-coded latency estimates are permitted in the evaluation pipeline.
 
 ---
 
-## 2. Cold Start & Memory Footprint
+## 1. Dynamic Latency Measurement
 
-- **Cold Start Time:** $12.4\text{ ms}$ (initial module load and tensor initialization).
-- **Warm Inference Time:** $0.35\text{ ms}$ steady-state median.
-- **Process Memory RSS:** $84.2\text{ MB}$ (standard FastAPI process without heavy CUDA overhead).
-- **Peak Execution Memory:** $< 180\text{ MB}$ during concurrent multi-spectral raster parsing.
+All specialist models are evaluated under the standardized `EvaluationRunner` timing wrapper measuring wall-clock time per sample:
+
+```python
+t_start = time.perf_counter()
+output = model.predict(processed_input=sample.primary_image, query=query)
+elapsed_ms = (time.perf_counter() - t_start) * 1000.0
+```
+
+- **Metrics Computed:** Mean, median (p50), 95th-percentile (p95), and 99th-percentile (p99).
+- **Measurement Target:** Full inference forward pass including prompt tokenization and tensor operations.
 
 ---
 
-## 3. Hardware Reproducibility
+## 2. Memory Footprint & Hardware Constraints
 
-- **Benchmark Environment:**
-  - OS: Windows / Linux compatible.
-  - CPU Architecture: x86_64, 16 Physical Cores.
-  - RAM: 32 GB.
-  - Acceleration Mode: Pure PyTorch CPU Execution (`torch.device("cpu")`).
-- **Defensibility Criterion:**
-  Because the models do not require dedicated high-end GPU hardware for benchmark reproduction, any hackathon evaluator or jury member can reproduce 100% of these numbers on an ordinary laptop by running:
+- **Process Memory RSS:** $\approx 85\text{ MB}$ base memory footprint.
+- **Inference Hardware:** Evaluated in pure CPU execution mode (`torch.device("cpu")`), ensuring complete reproducibility on consumer-grade hardware without requiring dedicated high-end GPUs.
+- **Evaluation Command:**
   ```bash
   python -m evaluation.run --all
   ```

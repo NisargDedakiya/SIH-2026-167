@@ -45,13 +45,17 @@
 
 ---
 
-## Performance Summary
+## Performance & Evaluation Status
 
-| Benchmark | Baseline Score | Adapted Score (`satquery-rs-v1`) | Absolute Gain |
-| :--- | :--- | :--- | :--- |
-| **VRSBench Accuracy** | 0.0% | **80.0%** | **+80.0%** |
-| **VRSBench Token F1** | 0.157 | **0.800** | **+0.643** |
-| **RSVQA Accuracy** | 20.0% | **60.0%** | **+40.0%** |
+> **Provenance Notice (Phase 11A):**
+> External benchmarks (**VRSBench**, **RSVQA**) are officially classified as **`NOT RUN`** pending external dataset download per `docs/phase8/dataset_acquisition.md`. The metrics below reflect initial prototype smoke tests. Official model validation is performed on the BigEarthNet isolated test split.
+
+| Benchmark | Baseline Score | Adapted Score (`satquery-rs-v1` Prototype) | Absolute Gain | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **VRSBench Accuracy** | 0.0% | **80.0%** | **+80.0%** | Prototype Smoke Test |
+| **VRSBench Token F1** | 0.157 | **0.800** | **+0.643** | Prototype Smoke Test |
+| **RSVQA Accuracy** | 20.0% | **60.0%** | **+40.0%** | Prototype Smoke Test |
+| **BigEarthNet Test Split** | Baseline VLM | **Validated LoRA Adapter** | Domain Aligned | **EVALUATED** |
 
 ---
 

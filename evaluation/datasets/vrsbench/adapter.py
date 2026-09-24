@@ -4,6 +4,7 @@ Supports VQA, Captioning, and Visual Grounding tasks.
 Ref: VRSBench: A Versatile Remote Sensing Benchmark.
 """
 
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 import numpy as np
 from PIL import Image

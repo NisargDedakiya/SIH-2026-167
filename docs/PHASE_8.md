@@ -34,15 +34,12 @@ Prior to Phase 8, the system had completed ingestion (Phase 1–2), foundational
 - `AgentRoutingTaskEvaluator`: Tests intent classification and tool selection against 8 multimodal probe queries.
 - `CalibrationEvaluator`: Computes ECE and bins predictions into 5-bin reliability diagrams.
 
-### 4. Empirical Evaluation Scores
-- **VRSBench VQA Accuracy:** Baseline 0.0% $\to$ **80.0%** (Token F1 0.771).
-- **VRSBench Captioning:** BLEU-1 **1.000**, ROUGE-L **1.000**.
-- **VRSBench Grounding:** Mean IoU **1.000**, Recall@0.5 **100.0%**.
-- **RSVQA Presence & Comparison:** Accuracy **100.0%**, Token F1 **1.000**.
-- **CDVQA Bi-Temporal Change:** Accuracy **100.0%**, Token F1 **1.000**.
-- **Agent Routing Accuracy:** Intent Classification **100.0%**, Tool Dispatch **87.5%**, Overall Routing **93.8%**.
-- **Confidence Calibration:** Expected Calibration Error (ECE) = **0.192**, Brier Score = **0.0743**.
-- **Inference Latency:** Aggregate mean latency **0.39 ms** (p50: **0.35 ms**, p95: **0.55 ms**) on CPU.
+### 4. Empirical Evaluation Status & Results
+- **External Benchmarks (VRSBench, RSVQA, CDVQA, ISRO/SAC):** Formally reported as `NOT RUN` (0 samples evaluated) because external benchmark archives were not acquired locally. Adheres to zero-fabrication integrity policy (`allow_synthetic_fixtures=False`).
+- **BigEarthNet Land Cover:** Evaluated on the genuine isolated test split using the adapted BLIP LoRA specialist model.
+- **Agent Routing Accuracy:** Intent Classification **100.0%**, Tool Dispatch **87.5%**, Overall Routing **93.8%** across 8 multimodal test probes.
+- **Confidence Calibration:** Evaluated with 5-bin reliability diagrams and expected calibration error.
+- **Inference Latency:** Measured wall-clock latency using `time.perf_counter()` around actual inference on CPU.
 
 ### 5. Backend Evaluation API (`backend/app/api/evaluation.py`)
 Mounted under `/api/v1/evaluation/`:

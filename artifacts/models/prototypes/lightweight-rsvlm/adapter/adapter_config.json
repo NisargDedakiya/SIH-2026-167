@@ -10,5 +10,5 @@
     "crossattention.self.value"
   ],
   "base_model_name_or_path": "Salesforce/blip-vqa-base",
-  "num_adapter_parameters": 1179648
+  "num_adapter_parameters": 22336
 }

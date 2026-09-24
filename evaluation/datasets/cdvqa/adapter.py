@@ -4,6 +4,7 @@ Evaluates bi-temporal reasoning across paired T1 and T2 satellite acquisitions.
 Ref: CDVQA: Change Detection Visual Question Answering for Remote Sensing.
 """
 
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 import numpy as np
 from PIL import Image

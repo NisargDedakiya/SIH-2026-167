@@ -48,7 +48,13 @@ from evaluation.core.runner import EvaluationRunner
 # ---------------------------------------------------------------------------
 class TestDatasetAdapters:
     def test_vrsbench_adapter_loading(self):
-        adapter = VRSBenchAdapter()
+        # Strict mode (default): reports not available when files absent
+        strict_adapter = VRSBenchAdapter(allow_synthetic_fixtures=False)
+        strict_adapter.load(split="test")
+        assert strict_adapter.is_available is False
+
+        # Fixture testing mode: iterates synthetic development fixtures
+        adapter = VRSBenchAdapter(allow_synthetic_fixtures=True)
         assert adapter.name == "VRSBench"
         adapter.load(split="test")
         samples = list(adapter.iter_samples())
@@ -58,7 +64,11 @@ class TestDatasetAdapters:
         assert all(isinstance(s.primary_image, Image.Image) for s in samples)
 
     def test_rsvqa_adapter_queries(self):
-        adapter = RSVQAAdapter()
+        strict_adapter = RSVQAAdapter(allow_synthetic_fixtures=False)
+        strict_adapter.load(split="test")
+        assert strict_adapter.is_available is False
+
+        adapter = RSVQAAdapter(allow_synthetic_fixtures=True)
         assert adapter.name == "RSVQA"
         adapter.load(split="test")
         samples = list(adapter.iter_samples())
@@ -68,7 +78,11 @@ class TestDatasetAdapters:
         assert "comparison" in types
 
     def test_cdvqa_adapter_bitemporal_pairs(self):
-        adapter = CDVQAAdapter()
+        strict_adapter = CDVQAAdapter(allow_synthetic_fixtures=False)
+        strict_adapter.load(split="test")
+        assert strict_adapter.is_available is False
+
+        adapter = CDVQAAdapter(allow_synthetic_fixtures=True)
         assert adapter.name == "CDVQA"
         adapter.load(split="test")
         samples = list(adapter.iter_samples())

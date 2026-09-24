@@ -13,12 +13,15 @@ In compliance with rigorous scientific standards and ISRO SIH Phase 7 evaluation
 
 ## 2. Side-by-Side Benchmark Performance
 
-| Evaluation Benchmark | Baseline Generic VLM (`Salesforce/blip-vqa-base`) | SatQuery RS Adapted (`satquery-rs-v1`) | Absolute Gain ($\Delta$) | Relative Improvement |
+> **Provenance & Integrity Notice (Phase 11A):**
+> In compliance with Phase 11A scientific validation standards, external benchmarks (**VRSBench**, **RSVQA**) are officially classified as **`NOT RUN`** until external datasets are acquired locally per `docs/phase8/dataset_acquisition.md`. The metrics in this table reflect early development prototype smoke tests and are superseded by the canonical `evaluation_matrix.json`.
+
+| Evaluation Benchmark | Baseline Generic VLM (`Salesforce/blip-vqa-base`) | SatQuery RS Prototype (Smoke Test) | Absolute Gain ($\Delta$) | Relative Improvement |
 | :--- | :--- | :--- | :--- | :--- |
-| **VRSBench Accuracy** | 0.0% | **80.0%** | **+80.0%** | **$\infty$ (Baseline Failed)** |
-| **VRSBench Token F1** | 0.157 | **0.827** | **+0.670** | **+426.8%** |
-| **VRSBench Exact Match** | 0.0% | **80.0%** | **+80.0%** | **$\infty$ (Baseline Failed)** |
-| **RSVQA Accuracy** | 20.0% | **60.0%** | **+40.0%** | **+200.0%** |
+| **VRSBench Accuracy (Smoke)** | 0.0% | **80.0%** | **+80.0%** | **$\infty$ (Baseline Failed)** |
+| **VRSBench Token F1 (Smoke)** | 0.157 | **0.827** | **+0.670** | **+426.8%** |
+| **VRSBench Exact Match (Smoke)** | 0.0% | **80.0%** | **+80.0%** | **$\infty$ (Baseline Failed)** |
+| **RSVQA Accuracy (Smoke)** | 20.0% | **60.0%** | **+40.0%** | **+200.0%** |
 | **Domain Terminology (Part 23)** | 0.0% | **100.0%** | **+100.0%** | **$\infty$ (Baseline Failed)** |
 | **Terminology Token F1** | 0.017 | **1.000** | **+0.983** | **+5782.4%** |
 

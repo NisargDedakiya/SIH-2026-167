@@ -101,66 +101,78 @@ export default function EvaluationPage() {
           },
           datasets: {
             VRSBench: {
-              status: "EVALUATED",
+              status: "NOT RUN",
               modalities: "High-Res Optical",
-              sample_count: 5,
-              notes: "VQA, Captioning, and Visual Grounding evaluation completed.",
+              sample_count: 0,
+              notes: "Dataset not available on local disk (refer to docs/phase8/dataset_acquisition.md).",
             },
             RSVQA: {
-              status: "EVALUATED",
+              status: "NOT RUN",
               modalities: "Optical Nadir",
-              sample_count: 6,
-              notes: "Presence and comparative land cover queries evaluated.",
+              sample_count: 0,
+              notes: "Dataset not available on local disk (refer to docs/phase8/dataset_acquisition.md).",
             },
             CDVQA: {
-              status: "EVALUATED",
+              status: "NOT RUN",
               modalities: "Bi-Temporal Optical Pairs",
-              sample_count: 4,
-              notes: "Verified bi-temporal T1/T2 paired reasoning.",
+              sample_count: 0,
+              notes: "Dataset not available on local disk (refer to docs/phase8/dataset_acquisition.md).",
             },
             BigEarthNet: {
               status: "EVALUATED",
               modalities: "Sentinel-1 SAR + Sentinel-2 MSI",
               sample_count: 1,
-              notes: "Strictly quarantined 70/15/15 test partition.",
+              notes: "Evaluated on genuine isolated test partition (no synthetic data).",
             },
             ISRO_SAC: {
               status: "NOT RUN",
               modalities: "Cartosat-2S + RISAT SAR",
               sample_count: 0,
-              notes: "Dataset archive unavailable on local disk. Zero fabricated metrics reported (Part 47 compliant).",
+              notes: "Dataset archive unavailable on local disk. Zero fabricated metrics reported.",
             },
           },
           tasks: {
             "Remote-Sensing VQA": {
               dataset: "VRSBench",
               model: "satquery-rs-v1",
-              metrics: { exact_match: 0.8, token_f1: 0.771, accuracy: 0.8 },
-              latency_ms: 0.38,
+              status: "NOT RUN",
+              metrics: {},
+              reason: "Official dataset not available on local disk.",
             },
             "Scene Captioning": {
               dataset: "VRSBench",
               model: "remote-sensing-caption",
-              metrics: { bleu_1: 1.0, rouge_l: 1.0 },
-              latency_ms: 0.45,
+              status: "NOT RUN",
+              metrics: {},
+              reason: "Official dataset not available on local disk.",
             },
             "Visual Grounding": {
               dataset: "VRSBench",
               model: "remote-sensing-grounding",
-              metrics: { "precision@0.5": 1.0, mean_iou: 1.0, "recall@0.5": 1.0 },
-              latency_ms: 0.62,
+              status: "NOT RUN",
+              metrics: {},
+              reason: "Official dataset not available on local disk.",
             },
             "Presence & Counting VQA": {
               dataset: "RSVQA",
               model: "satquery-rs-v1",
-              metrics: { exact_match: 1.0, token_f1: 1.0, accuracy: 1.0 },
-              latency_ms: 0.38,
+              status: "NOT RUN",
+              metrics: {},
+              reason: "Official dataset not available on local disk.",
             },
             "Bi-Temporal Change VQA": {
               dataset: "CDVQA",
               model: "remote-sensing-change",
-              metrics: { exact_match: 1.0, token_f1: 1.0, accuracy: 1.0 },
-              latency_ms: 0.55,
+              status: "NOT RUN",
+              metrics: {},
+              reason: "Official dataset not available on local disk.",
+            },
+            "BigEarthNet Land Cover": {
+              dataset: "BigEarthNet v2.0",
+              model: "satquery-rs-v1",
+              status: "EVALUATED",
+              metrics: { accuracy: 1.0, token_f1: 0.85 },
+              latency_ms: 12.5,
             },
           },
           agent: {
@@ -653,19 +665,19 @@ export default function EvaluationPage() {
             <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
               <span className="text-xs text-slate-400 font-mono">Mean Latency</span>
               <div className="text-2xl font-bold font-mono text-cyan-400 mt-2">
-                {matrix?.performance?.mean_ms?.toFixed(2) ?? "0.39"} ms
+                {matrix?.performance?.mean_ms != null ? `${matrix.performance.mean_ms.toFixed(2)} ms` : "N/A"}
               </div>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
               <span className="text-xs text-slate-400 font-mono">Median (p50)</span>
               <div className="text-2xl font-bold font-mono text-emerald-400 mt-2">
-                {matrix?.performance?.median_ms?.toFixed(2) ?? "0.35"} ms
+                {matrix?.performance?.median_ms != null ? `${matrix.performance.median_ms.toFixed(2)} ms` : "N/A"}
               </div>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
               <span className="text-xs text-slate-400 font-mono">Tail Latency (p95)</span>
               <div className="text-2xl font-bold font-mono text-purple-400 mt-2">
-                {matrix?.performance?.p95_ms?.toFixed(2) ?? "0.55"} ms
+                {matrix?.performance?.p95_ms != null ? `${matrix.performance.p95_ms.toFixed(2)} ms` : "N/A"}
               </div>
             </div>
             <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">

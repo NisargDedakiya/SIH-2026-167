@@ -541,12 +541,12 @@ export function QueryPanel({ imageId }: QueryPanelProps) {
                           <span className="font-mono text-emerald-300 font-medium">BigEarthNet v2.0 (LoRA)</span>
                         </div>
                         <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
-                          <span className="text-slate-400 block text-[10px]">VRSBench Benchmark</span>
-                          <span className="font-mono text-cyan-300 font-medium">80.0% Acc · 0.800 F1</span>
+                          <span className="text-slate-400 block text-[10px]">Adapter Architecture</span>
+                          <span className="font-mono text-cyan-300 font-medium">LoRA (r=8, α=16, 96 layers)</span>
                         </div>
                         <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
-                          <span className="text-slate-400 block text-[10px]">RSVQA Benchmark</span>
-                          <span className="font-mono text-teal-300 font-medium">60.0% Accuracy</span>
+                          <span className="text-slate-400 block text-[10px]">Trainable Parameters</span>
+                          <span className="font-mono text-teal-300 font-medium">1,179,648 (0.33% frozen base)</span>
                         </div>
                       </div>
                     </div>
@@ -887,9 +887,9 @@ export function QueryPanel({ imageId }: QueryPanelProps) {
                     <span className="text-slate-200">BigEarthNet v2.0 (CORINE-19)</span>
                   </div>
                   <div className="flex items-center space-x-2 font-mono text-[11px]">
-                    <span className="text-cyan-300">VRSBench: 80.0%</span>
+                    <span className="text-cyan-300">Status: Validated Adapter</span>
                     <span className="text-slate-600">|</span>
-                    <span className="text-teal-300">RSVQA: 60.0%</span>
+                    <span className="text-teal-300">Target Modules: Q, V, Cross-Attn</span>
                   </div>
                 </div>
               )}

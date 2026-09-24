@@ -40,12 +40,14 @@ class BigEarthNetVQADataset:
         samples: List[Dict[str, Any]],
         band_projection: str = "RGB",
         transform: Optional[Any] = None,
-        target_size: Tuple[int, int] = (384, 384)
+        target_size: Tuple[int, int] = (384, 384),
+        allow_synthetic: bool = False
     ):
         self.samples = samples
         self.band_projection = band_projection
         self.transform = transform
         self.target_size = target_size
+        self.allow_synthetic = allow_synthetic
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -87,20 +89,46 @@ class BigEarthNetVQADataset:
 
     def _load_or_synthesize_image(self, sample: Dict[str, Any]) -> Image.Image:
         """
-        Loads raster from optical_path if available on disk, or synthesizes a
-        deterministic multimodal representation corresponding to the labels.
+        Loads raster from optical_path if available on disk. If absent and
+        allow_synthetic=False, raises FileNotFoundError. If allow_synthetic=True,
+        synthesizes a deterministic multimodal representation for smoke testing.
         """
         opt_path = sample.get("optical_path")
-        if opt_path and Path(opt_path).exists():
+        resolved_path = None
+        if opt_path:
+            p = Path(opt_path)
+            if p.exists():
+                resolved_path = p
+            else:
+                # Check relative to workspace root
+                parts = p.parts
+                if "data" in parts:
+                    idx = parts.index("data")
+                    rel_p = Path(__file__).resolve().parents[4] / Path(*parts[idx:])
+                    if rel_p.exists():
+                        resolved_path = rel_p
+                elif not p.is_absolute():
+                    rel_p = Path(__file__).resolve().parents[4] / p
+                    if rel_p.exists():
+                        resolved_path = rel_p
+
+        if resolved_path and resolved_path.exists():
             try:
-                img = Image.open(opt_path).convert("RGB")
+                img = Image.open(resolved_path).convert("RGB")
                 if img.size != self.target_size:
                     img = img.resize(self.target_size, Image.Resampling.BILINEAR)
                 return img
-            except Exception:
-                pass
+            except Exception as e:
+                if not self.allow_synthetic:
+                    raise IOError(f"Failed to open optical image '{resolved_path}': {e}") from e
 
-        # Synthesize realistic deterministic remote-sensing patch texture matching labels
+        if not self.allow_synthetic:
+            raise FileNotFoundError(
+                f"BigEarthNet image file not found on disk: '{opt_path}'. "
+                f"Synthetic fallback is disallowed in official training/evaluation (allow_synthetic=False)."
+            )
+
+        # Synthesize realistic deterministic remote-sensing patch texture matching labels (smoke test only)
         labels = sample.get("labels", [])
         np.random.seed(abs(hash(sample.get("sample_id", "patch"))) % (2**32))
 
@@ -109,22 +137,16 @@ class BigEarthNetVQADataset:
         img_arr = np.zeros((h, w, 3), dtype=np.uint8)
 
         if any("water" in l.lower() for l in labels):
-            # Deep blue/cyan water absorption
             img_arr[:, :] = [25, 60, 110]
         elif any("forest" in l.lower() for l in labels):
-            # Deep green NIR/red absorption
             img_arr[:, :] = [30, 95, 40]
         elif any("urban" in l.lower() or "industrial" in l.lower() for l in labels):
-            # Gray/concrete high reflectance
             img_arr[:, :] = [130, 135, 140]
         elif any("arable" in l.lower() or "crop" in l.lower() for l in labels):
-            # Golden/brown agricultural field
             img_arr[:, :] = [140, 130, 70]
         else:
-            # General earth/terrain
             img_arr[:, :] = [90, 100, 75]
 
-        # Add realistic remote sensing spatial texture noise
         noise = np.random.normal(0, 12, (h, w, 3)).astype(np.int16)
         img_arr = np.clip(img_arr.astype(np.int16) + noise, 0, 255).astype(np.uint8)
 

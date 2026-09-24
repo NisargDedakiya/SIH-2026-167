@@ -108,17 +108,21 @@ class RsAdaptedVqaModel(SpecialistModel):
                 dropout=0.05,
             )
 
-            # Load LoRA weights from adapter checkpoint
+            # Load LoRA weights from adapter checkpoint with strict architectural validation
+            from app.ai.exceptions import AdapterArchitectureMismatchError
             try:
-                self._model = LoRAManager.load_adapter(self._model, ckpt_dir)
-                logger.info(f"Loaded LoRA state_dict from {ckpt_dir}")
-            except Exception as load_err:
-                logger.warning(f"LoRA state_dict load notice: {load_err}")
+                self._model = LoRAManager.load_adapter(self._model, ckpt_dir, strict_validation=True)
+                logger.info(f"Loaded and verified LoRA state_dict from {ckpt_dir}")
+            except AdapterArchitectureMismatchError as arch_err:
+                logger.error(f"LoRA adapter architecture mismatch: {arch_err}")
+                raise arch_err
 
             self._model.to(device)
             self._model.eval()
             self._is_loaded = True
             logger.info(f"Successfully loaded RS-Adapted Model '{self.name}' with BLIP backbone on {device}.")
+        except AdapterArchitectureMismatchError:
+            raise
         except Exception as e:
             logger.error(f"Failed to load BLIP RS-adapted model '{self.name}': {e}")
             raise ModelUnavailableError(

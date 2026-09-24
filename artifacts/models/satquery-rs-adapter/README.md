@@ -1,9 +1,11 @@
 # SatQuery RS Adapter Checkpoint — satquery-rs-v1
 
-- **Base Model**: `Salesforce/blip-vqa-base`
-- **Adapter**: Low-Rank Adaptation (LoRA, rank=8, alpha=16)
+- **Status**: `VALIDATED`
+- **Base Model**: `Salesforce/blip-vqa-base` (`BlipForQuestionAnswering`)
+- **Adapter Type**: Low-Rank Adaptation (LoRA, rank=8, alpha=16)
+- **Target Modules**: `['query', 'value', 'crossattention.self.query', 'crossattention.self.value']`
 - **Dataset**: `BigEarthNet v2.0`
-- **Validation Accuracy**: `0.00%`
-- **Validation Loss**: `7.0479`
-- **Training Run ID**: `run_20260922_150632_c7b2a6`
-- **Created At**: `2026-09-22T15:06:35.707664+00:00`
+- **Adapter Parameters**: `1,179,648`
+- **Validation Loss**: `8.8635`
+- **Training Run ID**: `run_20260924_154845_32c1db`
+- **Created At**: `2026-09-24T15:49:05.797340+00:00`

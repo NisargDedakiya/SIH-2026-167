@@ -30,3 +30,13 @@ class InferenceError(AIError):
 class ModelUnavailableError(AIError):
     """Raised when the requested model cannot be initialized or loaded."""
     pass
+
+
+class AdapterArchitectureMismatchError(AIError):
+    """Raised when an adapter checkpoint does not match the base model architecture or target modules."""
+    def __init__(self, message: str, missing_keys: list = None, unexpected_keys: list = None):
+        super().__init__(message)
+        self.code = "ADAPTER_ARCHITECTURE_MISMATCH"
+        self.missing_keys = missing_keys or []
+        self.unexpected_keys = unexpected_keys or []
+

@@ -4,6 +4,7 @@ Supports presence, comparison, and counting remote-sensing queries.
 Ref: RSVQA: Visual Question Answering for Remote Sensing Data.
 """
 
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 import numpy as np
 from PIL import Image

@@ -31,13 +31,11 @@ Generic VLMs fail on satellite imagery because they lack exposure to nadir viewi
 - Trained for 3 epochs with AdamW optimizer, achieving smooth loss convergence ($0.5420 \to 0.2645$).
 - Serialized complete checkpoint to `artifacts/models/satquery-rs-adapter/`.
 
-### 5. Benchmark Evaluations (Empirical & Uncontaminated)
-- Evaluated against strictly quarantined **VRSBench**, **RSVQA**, and **Domain Terminology** test benchmarks.
-- **VRSBench Accuracy:** Baseline 0.0% $\to$ Adapted **80.0%** (+80.0% absolute gain).
-- **VRSBench Token F1:** Baseline 0.157 $\to$ Adapted **0.827** (+0.670 absolute gain).
-- **RSVQA Accuracy:** Baseline 20.0% $\to$ Adapted **60.0%** (+40.0% absolute gain).
-- **Domain Terminology (Part 23):** Baseline 0.0% $\to$ Adapted **100.0%** (+100.0% absolute gain, Token F1 **1.000** vs 0.017).
-- **Inference Latency:** $<1.0\text{ ms}$ on CPU for both baseline and adapted models.
+### 5. Benchmark Evaluations & Provenance Policy
+- **External Benchmarks (VRSBench, RSVQA):** Officially reported as `NOT RUN` when full external datasets are not acquired locally, adhering to Phase 11A scientific validation standards.
+- **Domain Terminology Probes:** Evaluated on verified remote-sensing terminology pairs (CORINE land cover nomenclature).
+- **BigEarthNet Adaptation:** Validated on isolated multi-label instruction split using adapted LoRA layers on the BLIP foundation backbone.
+- **Inference Latency:** Dynamically measured via `time.perf_counter()` on CPU without hard-coded estimates.
 
 ### 6. Model Registry & Runtime Integration
 - Registered `satquery-rs-v1` as the default model for `visual_question_answering`.
