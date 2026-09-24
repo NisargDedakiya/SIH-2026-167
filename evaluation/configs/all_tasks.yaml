@@ -1,0 +1,26 @@
+# Evaluation Configuration: Comprehensive Multi-Task Benchmark
+tasks:
+  - dataset: vrsbench
+    task: vqa
+    model: satquery-rs-v1
+  - dataset: vrsbench
+    task: captioning
+    model: remote-sensing-caption
+  - dataset: vrsbench
+    task: grounding
+    model: remote-sensing-grounding
+  - dataset: rsvqa
+    task: vqa
+    model: satquery-rs-v1
+  - dataset: cdvqa
+    task: change_vqa
+    model: remote-sensing-change
+  - dataset: bigearthnet
+    task: vqa
+    model: satquery-rs-v1
+  - dataset: isro_sac
+    task: cross_modal
+    model: cross-modal-fusion
+seed: 42
+split: test
+output_dir: artifacts/evaluation

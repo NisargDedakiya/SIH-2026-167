@@ -1,0 +1,26 @@
+{
+  "task": "GROUNDING",
+  "expected_workflow": "single_image_grounding",
+  "validation_criteria": {
+    "status": "completed",
+    "evidence_generated": true,
+    "evidence_types_allowed": ["bounding_box", "mask_overlay", "evidence_crop"],
+    "minimum_regions_detected": 1,
+    "regions_schema": {
+      "bbox_normalized_bounds": [0.0, 0.0, 1.0, 1.0],
+      "require_pixel_coords": true,
+      "require_geographic_bounds_when_crs_present": true
+    },
+    "confidence": {
+      "min_score": 0.50,
+      "max_score": 1.00
+    },
+    "trace": {
+      "required_events": [
+        "QUERY_RECEIVED",
+        "TASK_CLASSIFIED",
+        "PLAN_EXECUTED"
+      ]
+    }
+  }
+}

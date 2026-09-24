@@ -1,0 +1,692 @@
+{
+  "dataset_name": "BigEarthNet-v2.0-Curated",
+  "version": "2.0.0",
+  "source_url": "https://bigearth.net",
+  "license": "Community Data License Agreement (CDLA-Permissive-1.0)",
+  "created_at": "2026-09-22T15:04:55.907487+00:00",
+  "manifest_hash": "895409f7d794f359b249cc727c78bfa133085949115fecdcefac3ead497e0d94",
+  "total_samples": 24,
+  "modalities": {
+    "optical_count": 24,
+    "sar_count": 24,
+    "paired_count": 24
+  },
+  "split_ratios": {
+    "train": 0.7,
+    "val": 0.15,
+    "test": 0.15
+  },
+  "class_distribution": {
+    "Broad-leaved forest": 4,
+    "Complex cultivation patterns": 3,
+    "Pastures": 4,
+    "Arable land": 5,
+    "Land principally occupied by agriculture, with significant areas of natural vegetation": 1,
+    "Mixed forest": 2,
+    "Coniferous forest": 3,
+    "Urban fabric": 4,
+    "Industrial or commercial units": 2,
+    "Water bodies": 5,
+    "Inland wetlands": 2,
+    "Permanent crops": 2,
+    "Natural grassland and sparsely vegetated areas": 1,
+    "Transitional woodland, shrub": 2,
+    "Agro-forestry areas": 2,
+    "Road and rail networks and associated land": 1,
+    "Moors, heathland and sclerophyllous vegetation": 1,
+    "Coastal wetlands": 2,
+    "Beaches, dunes, sands": 2,
+    "Sclerophyllous vegetation": 1
+  },
+  "samples": [
+    {
+      "sample_id": "S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_01",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_01\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_01_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_01\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_01_SAR_VV_VH.png",
+      "labels": [
+        "Broad-leaved forest",
+        "Complex cultivation patterns",
+        "Pastures"
+      ],
+      "metadata": {
+        "tile": "T32ULD",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_02",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_02\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_02_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_02\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_02_SAR_VV_VH.png",
+      "labels": [
+        "Arable land",
+        "Land principally occupied by agriculture, with significant areas of natural vegetation"
+      ],
+      "metadata": {
+        "tile": "T32ULD",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_03",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_03\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_03_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_03\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_03_SAR_VV_VH.png",
+      "labels": [
+        "Mixed forest",
+        "Coniferous forest"
+      ],
+      "metadata": {
+        "tile": "T32ULD",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_04",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_04\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_04_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_04\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_04_SAR_VV_VH.png",
+      "labels": [
+        "Urban fabric",
+        "Industrial or commercial units"
+      ],
+      "metadata": {
+        "tile": "T32ULD",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_05",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_05\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_05_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_05\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_05_SAR_VV_VH.png",
+      "labels": [
+        "Water bodies",
+        "Inland wetlands"
+      ],
+      "metadata": {
+        "tile": "T32ULD",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_06",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_06\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_06_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_06\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_06_SAR_VV_VH.png",
+      "labels": [
+        "Arable land",
+        "Permanent crops"
+      ],
+      "metadata": {
+        "tile": "T32ULD",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_07",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_07\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_07_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_07\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_07_SAR_VV_VH.png",
+      "labels": [
+        "Pastures",
+        "Natural grassland and sparsely vegetated areas"
+      ],
+      "metadata": {
+        "tile": "T32ULD",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_08",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_08\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_08_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_08\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_08_SAR_VV_VH.png",
+      "labels": [
+        "Transitional woodland, shrub",
+        "Broad-leaved forest"
+      ],
+      "metadata": {
+        "tile": "T32ULD",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_09",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_09\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_09_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_09\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_09_SAR_VV_VH.png",
+      "labels": [
+        "Agro-forestry areas",
+        "Complex cultivation patterns"
+      ],
+      "metadata": {
+        "tile": "T32ULD",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_10",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_10\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_10_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_10\\S2A_MSIL2A_20170613T101031_N0205_R022_T32ULD_10_SAR_VV_VH.png",
+      "labels": [
+        "Urban fabric",
+        "Road and rail networks and associated land"
+      ],
+      "metadata": {
+        "tile": "T32ULD",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_01",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_01\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_01_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_01\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_01_SAR_VV_VH.png",
+      "labels": [
+        "Water bodies",
+        "Coniferous forest"
+      ],
+      "metadata": {
+        "tile": "T33UUP",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_02",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_02\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_02_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_02\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_02_SAR_VV_VH.png",
+      "labels": [
+        "Inland wetlands",
+        "Moors, heathland and sclerophyllous vegetation"
+      ],
+      "metadata": {
+        "tile": "T33UUP",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_03",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_03\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_03_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_03\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_03_SAR_VV_VH.png",
+      "labels": [
+        "Mixed forest",
+        "Broad-leaved forest"
+      ],
+      "metadata": {
+        "tile": "T33UUP",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_04",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_04\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_04_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_04\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_04_SAR_VV_VH.png",
+      "labels": [
+        "Arable land",
+        "Pastures"
+      ],
+      "metadata": {
+        "tile": "T33UUP",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_05",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_05\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_05_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_05\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_05_SAR_VV_VH.png",
+      "labels": [
+        "Urban fabric",
+        "Industrial or commercial units"
+      ],
+      "metadata": {
+        "tile": "T33UUP",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_06",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_06\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_06_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_06\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_06_SAR_VV_VH.png",
+      "labels": [
+        "Water bodies",
+        "Coastal wetlands"
+      ],
+      "metadata": {
+        "tile": "T33UUP",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_07",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_07\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_07_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_07\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_07_SAR_VV_VH.png",
+      "labels": [
+        "Beaches, dunes, sands",
+        "Water bodies"
+      ],
+      "metadata": {
+        "tile": "T33UUP",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_08",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_08\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_08_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_08\\S2B_MSIL2A_20170728T094029_N0205_R036_T33UUP_08_SAR_VV_VH.png",
+      "labels": [
+        "Coniferous forest",
+        "Transitional woodland, shrub"
+      ],
+      "metadata": {
+        "tile": "T33UUP",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_01",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_01\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_01_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_01\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_01_SAR_VV_VH.png",
+      "labels": [
+        "Permanent crops",
+        "Arable land"
+      ],
+      "metadata": {
+        "tile": "T30TYN",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_02",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_02\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_02_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_02\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_02_SAR_VV_VH.png",
+      "labels": [
+        "Sclerophyllous vegetation",
+        "Complex cultivation patterns"
+      ],
+      "metadata": {
+        "tile": "T30TYN",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_03",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_03\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_03_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_03\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_03_SAR_VV_VH.png",
+      "labels": [
+        "Urban fabric",
+        "Beaches, dunes, sands"
+      ],
+      "metadata": {
+        "tile": "T30TYN",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_04",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_04\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_04_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_04\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_04_SAR_VV_VH.png",
+      "labels": [
+        "Water bodies",
+        "Coastal wetlands"
+      ],
+      "metadata": {
+        "tile": "T30TYN",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_05",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_05\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_05_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_05\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_05_SAR_VV_VH.png",
+      "labels": [
+        "Broad-leaved forest",
+        "Agro-forestry areas"
+      ],
+      "metadata": {
+        "tile": "T30TYN",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    },
+    {
+      "sample_id": "S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_06",
+      "optical_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_06\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_06_RGB.png",
+      "sar_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\data\\raw\\bigearthnet\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_06\\S2A_MSIL2A_20170815T111031_N0205_R137_T30TYN_06_SAR_VV_VH.png",
+      "labels": [
+        "Pastures",
+        "Arable land"
+      ],
+      "metadata": {
+        "tile": "T30TYN",
+        "dimensions": [
+          120,
+          120
+        ],
+        "bands": [
+          "B02",
+          "B03",
+          "B04",
+          "B08",
+          "VV",
+          "VH"
+        ],
+        "crs": "EPSG:32632",
+        "resolution_m": 10.0,
+        "sensor": "Sentinel-2A/Sentinel-1"
+      }
+    }
+  ]
+}

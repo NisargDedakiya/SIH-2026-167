@@ -1,0 +1,29 @@
+{
+  "task": "VISUAL_QUESTION_ANSWERING",
+  "expected_workflow": "single_image_vqa",
+  "validation_criteria": {
+    "status": "completed",
+    "answer_min_length": 5,
+    "confidence": {
+      "min_score": 0.50,
+      "max_score": 1.00,
+      "required_method_pattern": "calibrated|score|vqa"
+    },
+    "observations": {
+      "require_observed": true,
+      "require_inferred": true,
+      "require_uncertain": true
+    },
+    "trace": {
+      "required_events": [
+        "QUERY_RECEIVED",
+        "INPUT_VALIDATED",
+        "TASK_CLASSIFIED",
+        "CAPABILITY_CHECKED",
+        "PLAN_GENERATED",
+        "PLAN_EXECUTED"
+      ]
+    },
+    "reports_available": ["json", "html", "pdf", "package"]
+  }
+}

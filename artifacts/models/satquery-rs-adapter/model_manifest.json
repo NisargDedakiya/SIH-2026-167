@@ -1,0 +1,35 @@
+{
+  "model_id": "satquery-rs-v1",
+  "base_model": "Salesforce/blip-vqa-base",
+  "adapter_type": "lora",
+  "dataset": "BigEarthNet",
+  "dataset_version": "2.0",
+  "tasks": [
+    "remote_sensing_vqa",
+    "captioning",
+    "scene_understanding"
+  ],
+  "preprocessing_version": "1.0.0",
+  "training_run_id": "run_20260922_150632_c7b2a6",
+  "created_at": "2026-09-22T15:06:35.705708+00:00",
+  "checkpoint_path": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\artifacts\\models\\satquery-rs-adapter",
+  "metrics": {
+    "final_train_loss": 7.055890655517578,
+    "validation_loss": 7.047912240028381,
+    "validation_accuracy": 0.0,
+    "total_steps": 50,
+    "training_time_seconds": 0.74,
+    "steps_per_second": 67.46
+  },
+  "lora_parameters": {
+    "injected_layers": 3,
+    "trainable_adapter_params": 22336,
+    "r": 8,
+    "alpha": 16,
+    "dropout": 0.05,
+    "target_keys": [
+      "feed_forward",
+      "lm_head"
+    ]
+  }
+}

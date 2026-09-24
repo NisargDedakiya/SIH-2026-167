@@ -1,0 +1,6 @@
+{
+  "model_type": "rs_vlm_adapter",
+  "base_model": "Salesforce/blip-vqa-base",
+  "adapter": "lora",
+  "version": "1.0.0"
+}

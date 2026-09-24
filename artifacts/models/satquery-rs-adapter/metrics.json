@@ -1,0 +1,8 @@
+{
+  "final_train_loss": 7.055890655517578,
+  "validation_loss": 7.047912240028381,
+  "validation_accuracy": 0.0,
+  "total_steps": 50,
+  "training_time_seconds": 0.74,
+  "steps_per_second": 67.46
+}

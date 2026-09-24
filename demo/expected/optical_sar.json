@@ -1,0 +1,23 @@
+{
+  "task": "CROSS_MODAL_ANALYSIS",
+  "expected_workflow": "optical_sar_analysis",
+  "validation_criteria": {
+    "status": "completed",
+    "required_inputs": 2,
+    "sensor_modalities": {
+      "optical_required": true,
+      "sar_required": true,
+      "preserve_native_polarizations": true
+    },
+    "cross_modal_reasoning": {
+      "require_joint_observations": true,
+      "require_modality_specific_insights": true,
+      "require_sensor_disagreement_or_uncertainty": true
+    },
+    "evidence_generated": true,
+    "confidence": {
+      "min_score": 0.50,
+      "max_score": 1.00
+    }
+  }
+}

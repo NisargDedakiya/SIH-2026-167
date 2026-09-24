@@ -1,0 +1,46 @@
+# SatQuery AI — Remote-Sensing VLM Adapter Configuration (Phase 7)
+# Parameter-Efficient Fine-Tuning (PEFT / LoRA) for Remote-Sensing VQA & Scene Understanding
+
+model:
+  name: "Salesforce/blip-vqa-base"
+  revision: "main"
+  base_architecture: "BlipForQuestionAnswering"
+  adapter_id: "satquery-rs-v1"
+
+training:
+  method: "lora"
+  epochs: 3
+  learning_rate: 5.0e-5
+  weight_decay: 0.01
+  batch_size: 2
+  gradient_accumulation_steps: 4
+  max_steps: 50
+  seed: 42
+  device: "auto"
+  mixed_precision: "fp32"
+  checkpoint_frequency: 25
+
+lora:
+  r: 8
+  alpha: 16
+  dropout: 0.05
+  bias: "none"
+  target_modules:
+    - "query"
+    - "value"
+    - "crossattention.self.query"
+    - "crossattention.self.value"
+
+data:
+  dataset: "BigEarthNet"
+  dataset_version: "2.0"
+  band_projection: "RGB"
+  target_resolution: [384, 384]
+  train_manifest: "data/splits/train.json"
+  validation_manifest: "data/splits/validation.json"
+  test_manifest: "data/splits/test.json"
+  sample_limit: 100
+
+output:
+  directory: "artifacts/models/satquery-rs-adapter"
+  runs_directory: "training/runs"

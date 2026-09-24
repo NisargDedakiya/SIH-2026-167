@@ -1,0 +1,8 @@
+# Evaluation Configuration: VRSBench VQA Benchmark
+dataset: vrsbench
+task: vqa
+split: test
+model: satquery-rs-v1
+seed: 42
+limit: null
+output_dir: artifacts/evaluation

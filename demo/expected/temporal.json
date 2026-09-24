@@ -1,0 +1,23 @@
+{
+  "task": "CHANGE_ANALYSIS",
+  "expected_workflow": "bi_temporal_change_detection",
+  "validation_criteria": {
+    "status": "completed",
+    "required_inputs": 2,
+    "alignment_verification": {
+      "spatial_overlap_required": true,
+      "resampling_performed_if_grid_differs": true
+    },
+    "change_metrics": {
+      "require_change_percentage": true,
+      "require_regions_count": true
+    },
+    "evidence_generated": true,
+    "evidence_types_allowed": ["change_map", "change_overlay", "region_highlight"],
+    "observations": {
+      "require_observed": true,
+      "require_inferred": true,
+      "require_uncertain": true
+    }
+  }
+}

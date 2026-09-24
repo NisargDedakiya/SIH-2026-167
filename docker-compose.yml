@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: satquery_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: satquery
+      POSTGRES_PASSWORD: satquery_secret
+      POSTGRES_DB: satquery_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U satquery -d satquery_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - satquery_network
+
+  minio:
+    image: minio/minio:RELEASE.2024-03-30T09-41-56Z
+    container_name: satquery_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: satquery_admin
+      MINIO_ROOT_PASSWORD: satquery_password_123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - satquery_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: satquery_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://satquery:satquery_secret@postgres:5432/satquery_db
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: satquery_admin
+      MINIO_SECRET_KEY: satquery_password_123
+      MINIO_BUCKET: satquery-imagery
+      MINIO_SECURE: "false"
+      MAX_UPLOAD_SIZE_MB: 500
+      PREVIEW_MAX_SIZE: 2048
+      CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - satquery_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: satquery_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - satquery_network
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  satquery_network:
+    driver: bridge

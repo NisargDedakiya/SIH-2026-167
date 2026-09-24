@@ -1,0 +1,63 @@
+{
+  "run_id": "run_20260922_150632_c7b2a6",
+  "timestamp": "2026-09-22T15:06:35.709359+00:00",
+  "config": {
+    "model": {
+      "name": "Salesforce/blip-vqa-base",
+      "revision": "main",
+      "base_architecture": "BlipForQuestionAnswering",
+      "adapter_id": "satquery-rs-v1"
+    },
+    "training": {
+      "method": "lora",
+      "epochs": 3,
+      "learning_rate": 5e-05,
+      "weight_decay": 0.01,
+      "batch_size": 2,
+      "gradient_accumulation_steps": 4,
+      "max_steps": 50,
+      "seed": 42,
+      "device": "auto",
+      "mixed_precision": "fp32",
+      "checkpoint_frequency": 25
+    },
+    "lora": {
+      "r": 8,
+      "alpha": 16,
+      "dropout": 0.05,
+      "bias": "none",
+      "target_modules": [
+        "query",
+        "value",
+        "crossattention.self.query",
+        "crossattention.self.value"
+      ]
+    },
+    "data": {
+      "dataset": "BigEarthNet",
+      "dataset_version": "2.0",
+      "band_projection": "RGB",
+      "target_resolution": [
+        384,
+        384
+      ],
+      "train_manifest": "data/splits/train.json",
+      "validation_manifest": "data/splits/validation.json",
+      "test_manifest": "data/splits/test.json",
+      "sample_limit": 100
+    },
+    "output": {
+      "directory": "artifacts/models/satquery-rs-adapter",
+      "runs_directory": "training/runs"
+    }
+  },
+  "metrics": {
+    "final_train_loss": 7.055890655517578,
+    "validation_loss": 7.047912240028381,
+    "validation_accuracy": 0.0,
+    "total_steps": 50,
+    "training_time_seconds": 0.74,
+    "steps_per_second": 67.46
+  },
+  "output_directory": "C:\\Users\\nisar\\OneDrive\\Desktop\\SIH2026-167\\artifacts\\models\\satquery-rs-adapter"
+}

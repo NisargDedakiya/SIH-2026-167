@@ -1,0 +1,41 @@
+data:
+  band_projection: RGB
+  dataset: BigEarthNet
+  dataset_version: '2.0'
+  sample_limit: 100
+  target_resolution:
+  - 384
+  - 384
+  test_manifest: data/splits/test.json
+  train_manifest: data/splits/train.json
+  validation_manifest: data/splits/validation.json
+lora:
+  alpha: 16
+  bias: none
+  dropout: 0.05
+  r: 8
+  target_modules:
+  - query
+  - value
+  - crossattention.self.query
+  - crossattention.self.value
+model:
+  adapter_id: satquery-rs-v1
+  base_architecture: BlipForQuestionAnswering
+  name: Salesforce/blip-vqa-base
+  revision: main
+output:
+  directory: artifacts/models/satquery-rs-adapter
+  runs_directory: training/runs
+training:
+  batch_size: 2
+  checkpoint_frequency: 25
+  device: auto
+  epochs: 3
+  gradient_accumulation_steps: 4
+  learning_rate: 5.0e-05
+  max_steps: 50
+  method: lora
+  mixed_precision: fp32
+  seed: 42
+  weight_decay: 0.01
