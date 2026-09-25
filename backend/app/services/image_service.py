@@ -140,58 +140,80 @@ class ImageService:
         )
 
     @classmethod
-    async def get_inspect_response(cls, image_id: uuid.UUID, db: AsyncSession) -> ImageInspectResponse:
-        stmt = select(ImageModel).where(ImageModel.id == image_id)
-        result = await db.execute(stmt)
-        record = result.scalar_one_or_none()
+    async def get_inspect_response(
+        cls,
+        image_id: uuid.UUID,
+        db: AsyncSession,
+        cached_record: Optional[ImageModel] = None
+    ) -> ImageInspectResponse:
+        record = cached_record
         if not record:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Image with ID {image_id} not found."
-            )
+            stmt = select(ImageModel).where(ImageModel.id == image_id)
+            result = await db.execute(stmt)
+            record = result.scalar_one_or_none()
+            if not record:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Image with ID {image_id} not found."
+                )
 
-        # Retrieve warnings from extensible metadata if present
-        stmt_meta = select(ImageMetadataModel).where(ImageMetadataModel.image_id == image_id)
-        meta_res = await db.execute(stmt_meta)
-        meta_record = meta_res.scalar_one_or_none()
-        warnings = meta_record.metadata_json.get("warnings", []) if meta_record else []
+        # Retrieve warnings from extensible metadata if present (ImageMetadataModel is optional)
+        warnings: list[str] = []
+        try:
+            stmt_meta = select(ImageMetadataModel).where(ImageMetadataModel.image_id == image_id)
+            meta_res = await db.execute(stmt_meta)
+            meta_record = meta_res.scalar_one_or_none()
+            if meta_record and isinstance(meta_record.metadata_json, dict):
+                raw_warnings = meta_record.metadata_json.get("warnings", [])
+                if isinstance(raw_warnings, list):
+                    warnings = [str(w) for w in raw_warnings]
+        except Exception as e:
+            logger.debug(f"Notice retrieving metadata warnings for image {image_id}: {e}")
+            warnings = []
 
         bounds_schema = None
         if record.bounds and isinstance(record.bounds, dict):
             bounds_schema = BoundingBoxSchema(
-                left=record.bounds.get("left", 0.0),
-                bottom=record.bounds.get("bottom", 0.0),
-                right=record.bounds.get("right", 0.0),
-                top=record.bounds.get("top", 0.0),
+                left=float(record.bounds.get("left", 0.0)),
+                bottom=float(record.bounds.get("bottom", 0.0)),
+                right=float(record.bounds.get("right", 0.0)),
+                top=float(record.bounds.get("top", 0.0)),
             )
 
         res_schema = None
         if record.resolution_x is not None and record.resolution_y is not None:
             res_schema = ResolutionSchema(
-                x=record.resolution_x,
-                y=record.resolution_y
+                x=float(record.resolution_x),
+                y=float(record.resolution_y)
             )
+
+        transform_list = None
+        if record.transform:
+            if isinstance(record.transform, (list, tuple)):
+                transform_list = [float(x) for x in record.transform]
+            elif isinstance(record.transform, dict):
+                transform_list = [float(v) for v in record.transform.values()]
 
         return ImageInspectResponse(
             id=record.id,
-            filename=record.original_filename,
-            format=record.file_format,
-            size_bytes=record.file_size,
-            modality=record.modality,
+            filename=record.original_filename or "unnamed_raster",
+            format=record.file_format or "unknown",
+            size_bytes=int(record.file_size or 0),
+            modality=record.modality or "unknown",
             raster=RasterMetadataSchema(
-                width=record.width,
-                height=record.height,
-                bands=record.band_count,
-                dtype=record.dtype,
-                nodata=record.nodata
+                width=int(record.width or 0),
+                height=int(record.height or 0),
+                bands=int(record.band_count or 1),
+                dtype=str(record.dtype or "uint8"),
+                nodata=float(record.nodata) if record.nodata is not None else None
             ),
             geospatial=GeospatialMetadataSchema(
-                is_geospatial=record.is_geospatial,
+                is_geospatial=bool(record.is_geospatial),
                 crs=record.crs,
                 epsg=record.epsg_code,
                 bounds=bounds_schema,
                 resolution=res_schema,
-                transform=record.transform
+                transform=transform_list
             ),
             validation=ValidationResultSchema(
                 valid=(record.validation_status != "error"),
@@ -259,7 +281,25 @@ class ImageService:
 
     @classmethod
     async def list_images(cls, db: AsyncSession, limit: int = 50) -> list[ImageInspectResponse]:
-        stmt = select(ImageModel).order_by(ImageModel.created_at.desc()).limit(limit)
-        res = await db.execute(stmt)
-        records = res.scalars().all()
-        return [await cls.get_inspect_response(record.id, db) for record in records]
+        try:
+            stmt = select(ImageModel).order_by(ImageModel.created_at.desc()).limit(limit)
+            res = await db.execute(stmt)
+            records = res.scalars().all()
+        except Exception as e:
+            logger.error(f"Error querying images from database: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "code": "DATABASE_SCHEMA_MISMATCH",
+                    "message": f"Database schema mismatch while querying images table: {str(e)}",
+                    "details": {"error": str(e)}
+                }
+            )
+
+        responses: list[ImageInspectResponse] = []
+        for record in records:
+            try:
+                responses.append(await cls.get_inspect_response(record.id, db, cached_record=record))
+            except Exception as e:
+                logger.warning(f"Error building inspect response for image {record.id}: {e}")
+        return responses

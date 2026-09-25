@@ -20,6 +20,8 @@ class ErrorCode(str, Enum):
     TIMEOUT = "TIMEOUT"
     RESOURCE_LIMIT = "RESOURCE_LIMIT"
     INTERNAL_ERROR = "INTERNAL_ERROR"
+    DATABASE_SCHEMA_MISMATCH = "DATABASE_SCHEMA_MISMATCH"
+    MODEL_REGISTRY_UNAVAILABLE = "MODEL_REGISTRY_UNAVAILABLE"
 
 
 class ErrorPayload(BaseModel):
@@ -44,8 +46,8 @@ class ErrorResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str = Field(default="ok", json_schema_extra={"example": "ok"})
     version: str = Field(default="0.1.0")
-    database: str = Field(default="connected")
-    storage: str = Field(default="connected")
+    database: Optional[str] = Field(default="not_checked")
+    storage: Optional[str] = Field(default="not_checked")
 
 
 class ReadyResponse(BaseModel):

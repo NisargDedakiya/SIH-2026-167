@@ -94,15 +94,32 @@ async def correlation_id_and_timing_middleware(request: Request, call_next):
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     req_id = request_id_ctx.get() or request.headers.get("X-Request-ID", str(uuid.uuid4()))
-    code = (
-        "VALIDATION_ERROR" if exc.status_code in (400, 422)
-        else ("RESOURCE_NOT_FOUND" if exc.status_code == 404
-        else ("ALIGNMENT_FAILURE" if "align" in str(exc.detail).lower()
-        else ("UNSUPPORTED_MODALITY" if "modality" in str(exc.detail).lower()
-        else "HTTP_ERROR")))
-    )
-    msg = str(exc.detail) if isinstance(exc.detail, str) else "An HTTP error occurred."
-    details = exc.detail if isinstance(exc.detail, dict) else {}
+    if isinstance(exc.detail, dict):
+        code = exc.detail.get("code") or (
+            "MODEL_UNAVAILABLE" if exc.status_code == 503
+            else ("VALIDATION_ERROR" if exc.status_code in (400, 422)
+            else ("RESOURCE_NOT_FOUND" if exc.status_code == 404
+            else "HTTP_ERROR"))
+        )
+        msg = exc.detail.get("message") or exc.detail.get("detail") or "An HTTP error occurred."
+        details = exc.detail.get("details", {})
+    else:
+        msg = str(exc.detail) if exc.detail else "An HTTP error occurred."
+        detail_lower = msg.lower()
+        if exc.status_code == 503:
+            code = "DATABASE_SCHEMA_MISMATCH" if ("database" in detail_lower or "schema" in detail_lower) else "MODEL_UNAVAILABLE"
+        elif exc.status_code in (400, 422):
+            code = "UNSUPPORTED_MODALITY" if "modality" in detail_lower else "VALIDATION_ERROR"
+        elif exc.status_code == 404:
+            code = "RESOURCE_NOT_FOUND"
+        elif "align" in detail_lower:
+            code = "ALIGNMENT_FAILURE"
+        elif "modality" in detail_lower:
+            code = "UNSUPPORTED_MODALITY"
+        else:
+            code = "HTTP_ERROR"
+        details = {}
+
     return JSONResponse(
         status_code=exc.status_code,
         content={

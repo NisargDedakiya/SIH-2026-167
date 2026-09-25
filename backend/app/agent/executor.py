@@ -8,9 +8,11 @@ import time
 from typing import Any, Dict, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fastapi import HTTPException, status
 from app.agent.exceptions import PlanExecutionError
 from app.agent.schemas import WorkflowPlanSchema
 from app.agent.trace import ExecutionTrace
+from app.ai.exceptions import AIError, InferenceError, ModelUnavailableError, UnsupportedModalityError
 from app.core.logging import logger
 from app.tools.registry import ToolRegistry, get_tool_registry
 
@@ -48,7 +50,14 @@ class ToolExecutor:
                     parameters=step.parameters,
                     output_metadata={"error": err_msg}
                 )
-                raise PlanExecutionError(err_msg)
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail={
+                        "code": "TOOL_NOT_FOUND",
+                        "message": err_msg,
+                        "details": {"tool": step.tool}
+                    }
+                )
 
             # Record tool start
             trace.add_event(
@@ -106,17 +115,113 @@ class ToolExecutor:
 
                 results.append(tool_output)
 
-            except Exception as e:
+            except HTTPException as e:
                 duration_ms = int((time.perf_counter() - step_start) * 1000)
-                logger.error(f"Execution failed on tool '{tool.name}': {e}", exc_info=True)
+                err_detail = e.detail if isinstance(e.detail, str) else str(e.detail.get("message", e.detail) if isinstance(e.detail, dict) else e.detail)
+                logger.warning(f"HTTPException on tool '{tool.name}': {e.status_code} - {err_detail}")
                 trace.add_event(
                     event_type="TOOL_EXECUTED",
                     tool_name=tool.name,
                     status="failed",
                     parameters=step.parameters,
-                    output_metadata={"error": str(e)},
+                    output_metadata={"error": err_detail, "status_code": e.status_code},
                     duration_ms=duration_ms
                 )
-                raise PlanExecutionError(f"Tool '{tool.name}' failed during execution: {str(e)}") from e
+                raise
+            except ModelUnavailableError as e:
+                duration_ms = int((time.perf_counter() - step_start) * 1000)
+                logger.error(f"Model unavailable on tool '{tool.name}': {e}")
+                trace.add_event(
+                    event_type="TOOL_EXECUTED",
+                    tool_name=tool.name,
+                    status="failed",
+                    parameters=step.parameters,
+                    output_metadata={"error": str(e), "code": "MODEL_UNAVAILABLE"},
+                    duration_ms=duration_ms
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "code": "MODEL_UNAVAILABLE",
+                        "message": f"Specialist model for tool '{tool.name}' is unavailable: {str(e)}",
+                        "details": {"tool": tool.name, "task": step.task}
+                    }
+                ) from e
+            except UnsupportedModalityError as e:
+                duration_ms = int((time.perf_counter() - step_start) * 1000)
+                logger.error(f"Unsupported modality on tool '{tool.name}': {e}")
+                trace.add_event(
+                    event_type="TOOL_EXECUTED",
+                    tool_name=tool.name,
+                    status="failed",
+                    parameters=step.parameters,
+                    output_metadata={"error": str(e), "code": "UNSUPPORTED_MODALITY"},
+                    duration_ms=duration_ms
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "UNSUPPORTED_MODALITY",
+                        "message": str(e),
+                        "details": {"tool": tool.name}
+                    }
+                ) from e
+            except InferenceError as e:
+                duration_ms = int((time.perf_counter() - step_start) * 1000)
+                logger.error(f"Inference error on tool '{tool.name}': {e}", exc_info=True)
+                trace.add_event(
+                    event_type="TOOL_EXECUTED",
+                    tool_name=tool.name,
+                    status="failed",
+                    parameters=step.parameters,
+                    output_metadata={"error": str(e), "code": "MODEL_EXECUTION_FAILURE"},
+                    duration_ms=duration_ms
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "code": "MODEL_EXECUTION_FAILURE",
+                        "message": f"Inference execution failed on tool '{tool.name}': {str(e)}",
+                        "details": {"tool": tool.name}
+                    }
+                ) from e
+            except PlanExecutionError as e:
+                duration_ms = int((time.perf_counter() - step_start) * 1000)
+                logger.error(f"Plan execution error on tool '{tool.name}': {e}")
+                trace.add_event(
+                    event_type="TOOL_EXECUTED",
+                    tool_name=tool.name,
+                    status="failed",
+                    parameters=step.parameters,
+                    output_metadata={"error": str(e), "code": "TOOL_EXECUTION_FAILURE"},
+                    duration_ms=duration_ms
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "code": "TOOL_EXECUTION_FAILURE",
+                        "message": str(e),
+                        "details": {"tool": tool.name}
+                    }
+                ) from e
+            except Exception as e:
+                duration_ms = int((time.perf_counter() - step_start) * 1000)
+                logger.error(f"Unexpected execution failure on tool '{tool.name}': {e}", exc_info=True)
+                trace.add_event(
+                    event_type="TOOL_EXECUTED",
+                    tool_name=tool.name,
+                    status="failed",
+                    parameters=step.parameters,
+                    output_metadata={"error": str(e), "code": "INTERNAL_ERROR"},
+                    duration_ms=duration_ms
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "code": "INTERNAL_ERROR",
+                        "message": f"Tool '{tool.name}' encountered an unexpected failure: {str(e)}",
+                        "details": {"tool": tool.name}
+                    }
+                ) from e
 
         return results

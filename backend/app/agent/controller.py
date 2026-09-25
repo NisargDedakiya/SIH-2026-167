@@ -276,8 +276,9 @@ class AgentController:
                 db=db
             )
         except Exception as e:
-            trace.finish(status="failed", error=str(e))
-            await self._persist_run(trace, run_id, "failed", error=str(e), db=db)
+            err_msg = str(e.detail.get("message", e.detail) if isinstance(getattr(e, "detail", None), dict) else (getattr(e, "detail", None) or str(e)))
+            trace.finish(status="failed", error=err_msg)
+            await self._persist_run(trace, run_id, "failed", error=err_msg, db=db)
             raise
 
         # Step 9: RESULT_NORMALIZED

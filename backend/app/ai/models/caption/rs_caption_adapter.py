@@ -40,8 +40,13 @@ class RsCaptionModel(SpecialistModel):
             from transformers import BlipForConditionalGeneration, BlipProcessor
 
             logger.info(f"Loading Remote-Sensing Captioning model '{self.model_id}' onto {device}...")
-            self._processor = BlipProcessor.from_pretrained(self.model_id)
-            self._model = BlipForConditionalGeneration.from_pretrained(self.model_id)
+            try:
+                self._processor = BlipProcessor.from_pretrained(self.model_id, local_files_only=True)
+                self._model = BlipForConditionalGeneration.from_pretrained(self.model_id, local_files_only=True)
+            except Exception:
+                self._processor = BlipProcessor.from_pretrained(self.model_id)
+                self._model = BlipForConditionalGeneration.from_pretrained(self.model_id)
+
             self._model.to(device)
             self._model.eval()
             self._is_loaded = True

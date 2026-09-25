@@ -42,8 +42,14 @@ class RsGroundingModel(SpecialistModel):
             from transformers import OwlViTForObjectDetection, OwlViTProcessor
 
             logger.info(f"Loading Grounding model '{self.model_id}' onto {device}...")
-            self._processor = OwlViTProcessor.from_pretrained(self.model_id)
-            self._model = OwlViTForObjectDetection.from_pretrained(self.model_id)
+            try:
+                self._processor = OwlViTProcessor.from_pretrained(self.model_id, local_files_only=True)
+                self._model = OwlViTForObjectDetection.from_pretrained(self.model_id, local_files_only=True)
+            except Exception:
+                # If not cached locally, attempt standard download/load
+                self._processor = OwlViTProcessor.from_pretrained(self.model_id)
+                self._model = OwlViTForObjectDetection.from_pretrained(self.model_id)
+
             self._model.to(device)
             self._model.eval()
             self._is_loaded = True
@@ -51,12 +57,12 @@ class RsGroundingModel(SpecialistModel):
         except ImportError as e:
             logger.error(f"PyTorch or Transformers missing: {e}")
             raise ModelUnavailableError(
-                f"Required deep learning libraries not installed: {e}"
+                f"Required deep learning libraries not installed for Grounding model: {e}"
             ) from e
         except Exception as e:
             logger.error(f"Failed to load Grounding model '{self.model_id}': {e}")
             raise ModelUnavailableError(
-                f"Unable to load model '{self.model_id}': {str(e)}"
+                f"Grounding model '{self.model_id}' is unavailable: {str(e)}"
             ) from e
 
     def validate_input(self, image_bytes: bytes, metadata: Dict[str, Any]) -> None:

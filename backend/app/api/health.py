@@ -14,14 +14,15 @@ settings = get_settings()
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
     """
-    Fast liveness probe endpoint.
+    Fast lightweight liveness probe endpoint.
     Indicates that the FastAPI application process is alive and receiving HTTP traffic.
+    Does not falsely claim database or storage are connected without checking (use /ready for dependencies).
     """
     return HealthResponse(
         status="ok",
         version=settings.APP_VERSION,
-        database="connected",
-        storage="connected"
+        database="not_checked",
+        storage="not_checked"
     )
 
 
@@ -29,17 +30,24 @@ async def health_check():
 async def readiness_check(response: Response):
     """
     Deep readiness probe endpoint.
-    Validates that database, object storage, and AI model registries are accessible
-    and ready to process multimodal satellite inference queries without exposing secrets.
+    Validates that database (connectivity and schema consistency), object storage,
+    and AI model registries are accessible and ready to process multimodal satellite inference queries.
     """
     services = {}
     is_ready = True
 
-    # 1. Probe Database Connectivity
+    # 1. Probe Database Connectivity & Schema Consistency
     try:
+        from app.database.session import check_db_schema_ready
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        services["database"] = "ready"
+
+        schema_ok, schema_status = check_db_schema_ready()
+        if schema_ok:
+            services["database"] = "ready"
+        else:
+            services["database"] = schema_status
+            is_ready = False
     except Exception as e:
         logger.warning(f"Readiness probe database check failed: {e}")
         services["database"] = "unreachable"
@@ -62,11 +70,11 @@ async def readiness_check(response: Response):
         if model_count > 0:
             services["models"] = f"ready ({model_count} registered)"
         else:
-            services["models"] = "unavailable (0 models)"
+            services["models"] = "MODEL_REGISTRY_UNAVAILABLE"
             is_ready = False
     except Exception as e:
         logger.warning(f"Readiness probe model registry check failed: {e}")
-        services["models"] = "unloaded"
+        services["models"] = "MODEL_REGISTRY_UNAVAILABLE"
         is_ready = False
 
     # 4. Probe Hardware Accelerator (GPU vs CPU Fallback)

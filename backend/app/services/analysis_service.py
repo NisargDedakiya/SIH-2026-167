@@ -171,7 +171,11 @@ class AnalysisService:
             await db.flush()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported modality: {str(e)}"
+                detail={
+                    "code": "UNSUPPORTED_MODALITY",
+                    "message": f"Unsupported modality: {str(e)}",
+                    "details": {"image_id": str(image_id), "task": task}
+                }
             )
         except ModelUnavailableError as e:
             job.status = "failed"
@@ -180,9 +184,27 @@ class AnalysisService:
             await db.flush()
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"The selected analysis model is currently unavailable: {str(e)}"
+                detail={
+                    "code": "MODEL_UNAVAILABLE",
+                    "message": f"The selected analysis model is currently unavailable: {str(e)}",
+                    "details": {"model": specialist_model.name, "task": task}
+                }
             )
-        except (InferenceError, AIError, Exception) as e:
+        except InferenceError as e:
+            job.status = "failed"
+            job.error = str(e)
+            job.completed_at = datetime.datetime.now(datetime.timezone.utc)
+            await db.flush()
+            logger.error(f"Inference error on job '{job_id}': {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "code": "MODEL_EXECUTION_FAILURE",
+                    "message": f"Inference execution failed: {str(e)}",
+                    "details": {"model": specialist_model.name, "task": task}
+                }
+            )
+        except Exception as e:
             job.status = "failed"
             job.error = str(e)
             job.completed_at = datetime.datetime.now(datetime.timezone.utc)
@@ -190,7 +212,11 @@ class AnalysisService:
             logger.error(f"Analysis job '{job_id}' failed: {e}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Analysis failed. No result was generated: {str(e)}"
+                detail={
+                    "code": "TOOL_EXECUTION_FAILURE",
+                    "message": f"Analysis failed. No result was generated: {str(e)}",
+                    "details": {"model": specialist_model.name, "task": task}
+                }
             )
 
     @classmethod

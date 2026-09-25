@@ -55,6 +55,8 @@ interface DemoErrorState {
   step: string;
   endpoint?: string;
   status?: number | string;
+  code?: string;
+  traceId?: string;
   message: string;
   suggestedAction: string;
 }
@@ -201,19 +203,29 @@ export default function DemoHubPage() {
         }
 
         if (!pairIdToUse) {
-          // Look for t1 and t2 in filenames or two optical images with matching CRS
+          // Look for t1 and t2 in filenames with matching CRS or overlapping dimensions
           const t1 = imagesList.find((i) => i.filename.toLowerCase().includes("t1"));
           const t2 = imagesList.find((i) => i.filename.toLowerCase().includes("t2"));
 
           if (t1 && t2 && t1.id !== t2.id) {
             imageIdsToUse = [t1.id, t2.id];
           } else {
-            // Find any two optical images with identical dimensions
+            // Find two optical images with identical dimensions and compatible CRS
             const opticalImages = imagesList.filter(
-              (i) => i.modality === "optical" || i.modality === "multispectral"
+              (i) => i.modality === "optical" || i.modality === "multispectral" || !i.modality
             );
-            if (opticalImages.length >= 2) {
-              imageIdsToUse = [opticalImages[0].id, opticalImages[1].id];
+            for (let i = 0; i < opticalImages.length; i++) {
+              for (let j = i + 1; j < opticalImages.length; j++) {
+                const imgA = opticalImages[i];
+                const imgB = opticalImages[j];
+                const crsMatch = !imgA.geospatial?.crs || !imgB.geospatial?.crs || imgA.geospatial.crs === imgB.geospatial.crs;
+                const dimMatch = imgA.raster.width === imgB.raster.width && imgA.raster.height === imgB.raster.height;
+                if (crsMatch && dimMatch) {
+                  imageIdsToUse = [imgA.id, imgB.id];
+                  break;
+                }
+              }
+              if (imageIdsToUse.length >= 2) break;
             }
           }
         }
@@ -222,9 +234,11 @@ export default function DemoHubPage() {
           setErrorDetails({
             step: "Pair Validation",
             endpoint: "/api/v1/temporal/pairs",
-            message: "Demo input unavailable: No validated Bi-Temporal pair (T1 & T2) is available.",
+            status: 404,
+            code: "PAIR_VALIDATION_FAILURE",
+            message: "Demo input unavailable: No valid Bi-Temporal pair (T1 & T2 with compatible spatial reference) is available.",
             suggestedAction:
-              "Please upload two co-registered multi-temporal acquisitions or register a pair in the Temporal Workspace.",
+              "Please upload two co-registered multi-temporal acquisitions or register a verified pair in the Temporal Workspace.",
           });
           setIsRunning(false);
           return;
@@ -270,7 +284,10 @@ export default function DemoHubPage() {
           );
 
           if (opt && sar && opt.id !== sar.id) {
-            optSarImageIds = [opt.id, sar.id];
+            const crsMatch = !opt.geospatial?.crs || !sar.geospatial?.crs || opt.geospatial.crs === sar.geospatial.crs;
+            if (crsMatch) {
+              optSarImageIds = [opt.id, sar.id];
+            }
           }
         }
 
@@ -278,7 +295,9 @@ export default function DemoHubPage() {
           setErrorDetails({
             step: "Pair Validation",
             endpoint: "/api/v1/cross-modal/pairs",
-            message: "Demo input unavailable: No validated Optical + SAR pair is available.",
+            status: 404,
+            code: "PAIR_VALIDATION_FAILURE",
+            message: "Demo input unavailable: An Optical raster and a SAR raster with spatial compatibility are required.",
             suggestedAction:
               "Please upload one Optical image and one SAR image, or configure a cross-modal pair in the Cross-Modal Workspace.",
           });
@@ -293,17 +312,27 @@ export default function DemoHubPage() {
       }
     } catch (err: any) {
       const isApiErr = err instanceof ApiError;
+      const status = isApiErr ? err.status : undefined;
+      const code = isApiErr ? err.code : undefined;
+      const traceId = isApiErr ? err.traceId : undefined;
+
+      let action = "Check backend server status and ensure dependencies are healthy.";
+      if (status === 503 || code === "MODEL_UNAVAILABLE") {
+        action = "Grounding or specialist model is not available locally. Run 'python scripts/prepare_models.py'.";
+      } else if (code === "DATABASE_SCHEMA_MISMATCH") {
+        action = "Database schema mismatch detected. Run migrations or restart container with updated schema.";
+      } else if (status === 404) {
+        action = "Target satellite image was not found in database registry. Upload rasters via Images page.";
+      }
+
       setErrorDetails({
         step: currentStep,
         endpoint: isApiErr ? err.endpoint : currentEndpoint,
-        status: isApiErr ? err.status : undefined,
+        status: status,
+        code: code,
+        traceId: traceId,
         message: err?.message || "Failed to execute demonstration analysis.",
-        suggestedAction:
-          err?.status === 503
-            ? "The AI model runtime is not ready. Verify that specialist models are loaded."
-            : err?.status === 404
-            ? "Target satellite image was not found in database registry."
-            : "Check backend server status and ensure dependencies are healthy.",
+        suggestedAction: action,
       });
     } finally {
       setIsRunning(false);
@@ -444,7 +473,7 @@ export default function DemoHubPage() {
                 <span>Execution Diagnostic Report</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono">
                 <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
                   <span className="text-slate-500 block text-[10px] uppercase">Step</span>
                   <span className="text-slate-200 font-semibold">{errorDetails.step}</span>
@@ -452,13 +481,25 @@ export default function DemoHubPage() {
                 {errorDetails.endpoint && (
                   <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
                     <span className="text-slate-500 block text-[10px] uppercase">Endpoint</span>
-                    <span className="text-slate-200 font-semibold truncate block">{errorDetails.endpoint}</span>
+                    <span className="text-slate-200 font-semibold truncate block" title={errorDetails.endpoint}>{errorDetails.endpoint}</span>
                   </div>
                 )}
                 {errorDetails.status !== undefined && (
                   <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
                     <span className="text-slate-500 block text-[10px] uppercase">HTTP Status</span>
                     <span className="text-amber-400 font-semibold">{errorDetails.status}</span>
+                  </div>
+                )}
+                {errorDetails.code && (
+                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
+                    <span className="text-slate-500 block text-[10px] uppercase">Error Code</span>
+                    <span className="text-rose-400 font-semibold truncate block">{errorDetails.code}</span>
+                  </div>
+                )}
+                {errorDetails.traceId && (
+                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
+                    <span className="text-slate-500 block text-[10px] uppercase">Trace ID</span>
+                    <span className="text-cyan-400 font-semibold truncate block" title={errorDetails.traceId}>{errorDetails.traceId}</span>
                   </div>
                 )}
               </div>
