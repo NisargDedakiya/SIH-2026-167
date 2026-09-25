@@ -59,7 +59,11 @@ async def readiness_check(response: Response):
         from app.ai.runtime import get_model_runtime
         runtime = get_model_runtime()
         model_count = len(runtime.registry.list_models())
-        services["models"] = f"ready ({model_count} registered)" if model_count > 0 else "ready (empty)"
+        if model_count > 0:
+            services["models"] = f"ready ({model_count} registered)"
+        else:
+            services["models"] = "unavailable (0 models)"
+            is_ready = False
     except Exception as e:
         logger.warning(f"Readiness probe model registry check failed: {e}")
         services["models"] = "unloaded"

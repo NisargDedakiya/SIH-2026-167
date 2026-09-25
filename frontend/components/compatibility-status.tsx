@@ -90,11 +90,22 @@ export function CompatibilityStatus({
   const imgA = images[0];
   const imgB = images[1];
 
-  const sameCrs = (imgA.geospatial?.crs || imgA.crs) === (imgB.geospatial?.crs || imgB.crs);
-  const isTemporal = (imgA.modality || imgA.sensor_type) === (imgB.modality || imgB.sensor_type);
+  const resolveCrs = (img: any) => {
+    if (img?.geospatial?.epsg) return `EPSG:${img.geospatial.epsg}`;
+    if (img?.epsg || img?.epsg_code) return `EPSG:${img.epsg || img.epsg_code}`;
+    return img?.geospatial?.crs || img?.crs || "Pixel Frame";
+  };
+
+  const crsA = resolveCrs(imgA);
+  const crsB = resolveCrs(imgB);
+  const sameCrs = crsA !== "Pixel Frame" && crsA === crsB;
+
+  const modA = (imgA.modality || imgA.sensor_type || "optical").toLowerCase();
+  const modB = (imgB.modality || imgB.sensor_type || "optical").toLowerCase();
+  const isTemporal = modA === modB;
   const isCrossModal =
-    (imgA.modality === "optical" && imgB.modality === "sar") ||
-    (imgA.modality === "sar" && imgB.modality === "optical");
+    (modA === "optical" && modB === "sar") ||
+    (modA === "sar" && modB === "optical");
 
   return (
     <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs">

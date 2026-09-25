@@ -6,19 +6,20 @@ Implements Stage A -> Stage B -> Stage C architecture.
 from typing import Any, Dict, List, Optional
 import numpy as np
 
+from app.ai.base import SpecialistModel
 from app.ai.models.cross_modal.base import CrossModalModel
 from app.ai.models.cross_modal.optical_encoder import OpticalEncoder
 from app.ai.models.cross_modal.sar_encoder import SAREncoder
 from app.cross_modal.fusion import CrossModalFusion
 
 
-class CrossModalFusionModel(CrossModalModel):
+class CrossModalFusionModel(SpecialistModel, CrossModalModel):
     """
     Production-grade baseline specialist model for co-registered Optical + SAR joint analysis.
     Modular design allows replacing encoder backbones and fusion attention layers in Phase 7.
     """
 
-    name: str = "optical-sar-fusion-baseline"
+    name: str = "remote-sensing-cross-modal"
     version: str = "1.0.0"
     task: str = "cross_modal_analysis"
     supported_modalities: List[str] = ["optical", "multispectral", "sar"]
@@ -136,3 +137,27 @@ class CrossModalFusionModel(CrossModalModel):
             "regions": regions,
             "joint_shape": list(joint_tensor.shape),
         }
+
+    def validate_input(self, image_bytes: bytes, metadata: Dict[str, Any]) -> None:
+        if not image_bytes:
+            raise ValueError("Input image cannot be empty for cross-modal analysis.")
+
+    def preprocess(self, image_bytes: bytes, metadata: Dict[str, Any]) -> Any:
+        return image_bytes
+
+    def postprocess(self, raw_output: Any) -> Dict[str, Any]:
+        return {
+            "answer": raw_output.get("answer", ""),
+            "optical_signal": raw_output.get("optical_signal", {}),
+            "sar_signal": raw_output.get("sar_signal", {}),
+            "regions": raw_output.get("regions", []),
+        }
+
+    def confidence(self, raw_output: Any) -> Dict[str, Any]:
+        return {
+            "score": raw_output.get("confidence_score", 0.90),
+            "method": raw_output.get("confidence_method", "joint_feature_fusion_probability"),
+        }
+
+    def evidence(self, raw_output: Any) -> List[Dict[str, Any]]:
+        return raw_output.get("regions", [])

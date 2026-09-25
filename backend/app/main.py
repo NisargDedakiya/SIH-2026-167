@@ -26,9 +26,13 @@ async def lifespan(app: FastAPI):
     try:
         from app.ai.runtime import get_model_runtime
         runtime = get_model_runtime()
-        logger.info(f"AI ModelRuntime ready with {len(runtime.registry.list_models())} registered models.")
+        model_count = len(runtime.registry.list_models())
+        if model_count == 0:
+            logger.error("AI ModelRuntime startup warning: 0 specialist models registered.")
+        else:
+            logger.info(f"AI ModelRuntime ready with {model_count} registered models.")
     except Exception as e:
-        logger.warning(f"AI ModelRuntime deferred startup note: {e}")
+        logger.error(f"AI ModelRuntime startup failure: {e}", exc_info=True)
     yield
     # Shutdown
     logger.info(f"Shutting down {settings.APP_NAME}")
@@ -44,10 +48,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration
+# CORS Configuration - avoid wildcard when credentials are enabled
+allowed_origins = settings.cors_origin_list if settings.cors_origin_list else ["http://localhost:3000", "http://127.0.0.1:3000"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origin_list or ["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -56,7 +61,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def correlation_id_and_timing_middleware(request: Request, call_next):
-    """Assigns unique correlation ID and logs execution duration for every request."""
+    """Assigns unique correlation ID, sets security headers, and logs execution duration for every request."""
     req_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
     token = request_id_ctx.set(req_id)
     start_time = time.time()
@@ -65,6 +70,9 @@ async def correlation_id_and_timing_middleware(request: Request, call_next):
 
     duration_ms = int((time.time() - start_time) * 1000)
     response.headers["X-Request-ID"] = req_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
     # Log non-health requests
     if request.url.path != "/health":

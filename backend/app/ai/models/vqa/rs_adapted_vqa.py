@@ -5,16 +5,32 @@ Provides high-fidelity remote-sensing terminology, land-cover identification, an
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import numpy as np
 from PIL import Image
 
+logger = logging.getLogger(__name__)
+
 from app.ai.base import SpecialistModel
-from app.ai.exceptions import InferenceError, ModelUnavailableError, UnsupportedModalityError
+from app.ai.exceptions import (
+    AdapterArchitectureMismatchError,
+    InferenceError,
+    ModelUnavailableError,
+    UnsupportedModalityError,
+)
 from app.ai.preprocessing import RemoteSensingPreprocessor
-from app.core.logging import logger
-from training.peft_adapter import LoRAManager
+try:
+    from transformers import BlipForQuestionAnswering, BlipProcessor
+except ImportError:
+    BlipForQuestionAnswering = None
+    BlipProcessor = None
+
+try:
+    from training.peft_adapter import LoRAManager
+except ImportError:
+    from backend.training.peft_adapter import LoRAManager
 
 
 class RsAdaptedVqaModel(SpecialistModel):
@@ -87,11 +103,17 @@ class RsAdaptedVqaModel(SpecialistModel):
 
         try:
             import torch
-            from transformers import BlipForQuestionAnswering, BlipProcessor
-            from training.peft_adapter import LoRAManager
+            try:
+                from training.peft_adapter import LoRAManager
+            except ImportError:
+                from backend.training.peft_adapter import LoRAManager
 
-            self._processor = BlipProcessor.from_pretrained(self.base_model_id)
-            self._model = BlipForQuestionAnswering.from_pretrained(self.base_model_id)
+            try:
+                self._processor = BlipProcessor.from_pretrained(self.base_model_id, local_files_only=True)
+                self._model = BlipForQuestionAnswering.from_pretrained(self.base_model_id, local_files_only=True)
+            except Exception:
+                self._processor = BlipProcessor.from_pretrained(self.base_model_id)
+                self._model = BlipForQuestionAnswering.from_pretrained(self.base_model_id)
 
             # Apply LoRA on target linear projections
             target_submodules = [

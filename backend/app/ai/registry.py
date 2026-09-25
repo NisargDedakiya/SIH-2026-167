@@ -20,11 +20,19 @@ class ModelRegistry:
         self._models: Dict[str, SpecialistModel] = {}
         self._task_map: Dict[str, str] = {}
 
-    def register(self, model: SpecialistModel, default_for_task: bool = True) -> None:
+    def register(
+        self,
+        model: SpecialistModel,
+        default_for_task: bool = True,
+        aliases: Optional[List[str]] = None
+    ) -> None:
         """
         Register a specialist model instance.
         """
         self._models[model.name] = model
+        if aliases:
+            for alias in aliases:
+                self._models[alias] = model
         if default_for_task or model.task not in self._task_map:
             self._task_map[model.task] = model.name
         logger.info(
@@ -66,13 +74,17 @@ class ModelRegistry:
         Enumerate all registered models and their capability metadata.
         """
         result = []
+        seen = set()
         for name, model in self._models.items():
+            if model.name in seen:
+                continue
+            seen.add(model.name)
             result.append({
                 "name": model.name,
                 "version": model.version,
                 "task": model.task,
                 "supported_modalities": model.supported_modalities,
-                "is_default_for_task": (self._task_map.get(model.task) == name),
+                "is_default_for_task": (self._task_map.get(model.task) == model.name),
                 "is_adapted": getattr(model, "is_adapted", False),
                 "adapter_type": getattr(model, "adapter_type", None),
                 "dataset_provenance": getattr(model, "dataset_provenance", None),

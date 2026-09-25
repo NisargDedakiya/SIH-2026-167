@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Layers,
@@ -39,7 +39,7 @@ import {
 } from "@/lib/api";
 import { ImageInspect, FullAnalysisDetail } from "@/lib/types";
 
-export default function AnalyzeWorkspacePage() {
+function AnalyzeWorkspacePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -600,5 +600,19 @@ export default function AnalyzeWorkspacePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AnalyzeWorkspacePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-16 text-center text-xs font-mono text-slate-500">
+          Loading Analysis Workspace...
+        </div>
+      }
+    >
+      <AnalyzeWorkspacePageContent />
+    </Suspense>
   );
 }

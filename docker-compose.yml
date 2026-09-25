@@ -84,7 +84,8 @@ services:
       backend:
         condition: service_healthy
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      SATQUERY_BACKEND_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: ""
     ports:
       - "3000:3000"
     healthcheck:

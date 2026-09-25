@@ -17,13 +17,45 @@ import {
 } from "lucide-react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
+  const [healthStatus, setHealthStatus] = useState<
+    "CONNECTING" | "ONLINE" | "DEGRADED" | "OFFLINE"
+  >("CONNECTING");
 
   useEffect(() => {
-    fetch("/health")
-      .then((res) => res.json())
-      .then((data) => setIsHealthy(data.status === "ok"))
-      .catch(() => setIsHealthy(false));
+    let isMounted = true;
+
+    async function evaluateHealth() {
+      try {
+        const healthRes = await fetch("/health");
+        if (!healthRes.ok) {
+          if (isMounted) setHealthStatus("OFFLINE");
+          return;
+        }
+
+        // Liveness succeeded (200). Now probe deep readiness.
+        try {
+          const readyRes = await fetch("/ready");
+          if (isMounted) {
+            if (readyRes.ok) {
+              setHealthStatus("ONLINE");
+            } else {
+              setHealthStatus("DEGRADED");
+            }
+          }
+        } catch (_) {
+          if (isMounted) setHealthStatus("DEGRADED");
+        }
+      } catch (_) {
+        if (isMounted) setHealthStatus("OFFLINE");
+      }
+    }
+
+    evaluateHealth();
+    const interval = setInterval(evaluateHealth, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   return (
@@ -108,15 +140,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
               <span
                 className={`h-2 w-2 rounded-full ${
-                  isHealthy === null
+                  healthStatus === "CONNECTING"
                     ? "bg-slate-500 animate-pulse"
-                    : isHealthy
+                    : healthStatus === "ONLINE"
                     ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
+                    : healthStatus === "DEGRADED"
+                    ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]"
                     : "bg-rose-500"
                 }`}
               />
-              <span className="hidden md:inline">
-                {isHealthy === null ? "Connecting" : isHealthy ? "Online" : "Offline"}
+              <span className="hidden md:inline font-mono text-[10px]">
+                {healthStatus === "CONNECTING"
+                  ? "Connecting"
+                  : healthStatus === "ONLINE"
+                  ? "Online"
+                  : healthStatus === "DEGRADED"
+                  ? "Degraded"
+                  : "Offline"}
               </span>
             </div>
           </nav>

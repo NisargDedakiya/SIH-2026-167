@@ -17,7 +17,7 @@ class RsChangeDetectionModel(SpecialistModel, ChangeDetectionModel):
     Computes normalized multi-spectral band differences and spatial change likelihoods.
     """
 
-    name = "remote-sensing-siam-diff"
+    name = "remote-sensing-change"
     version = "0.1.0"
     task = "change_analysis"
     supported_modalities = ["optical", "multispectral", "sar", "unknown"]

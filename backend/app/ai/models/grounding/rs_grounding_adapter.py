@@ -174,3 +174,18 @@ class RsGroundingModel(SpecialistModel):
         for pat in patterns:
             q = re.sub(pat, "", q)
         return q.strip() or "region of interest"
+
+    def postprocess(self, raw_output: Any) -> Dict[str, Any]:
+        if isinstance(raw_output, dict) and "result" in raw_output:
+            return raw_output["result"]
+        return raw_output if isinstance(raw_output, dict) else {"answer": str(raw_output)}
+
+    def confidence(self, raw_output: Any) -> Dict[str, Any]:
+        if isinstance(raw_output, dict) and "confidence" in raw_output:
+            return raw_output["confidence"]
+        return {"score": 0.85, "method": "sigmoid_detection_logit"}
+
+    def evidence(self, raw_output: Any) -> List[Dict[str, Any]]:
+        if isinstance(raw_output, dict) and "evidence" in raw_output:
+            return raw_output["evidence"]
+        return []

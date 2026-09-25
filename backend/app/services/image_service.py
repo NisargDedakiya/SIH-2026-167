@@ -218,7 +218,7 @@ class ImageService:
         if not record or not record.preview_key:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Preview not found for this image."
+                detail="PREVIEW_NOT_FOUND: No preview key registered for this image."
             )
 
         store = get_object_store()
@@ -226,10 +226,10 @@ class ImageService:
             preview_bytes = await store.download_bytes(record.preview_key)
             return preview_bytes, "image/png"
         except Exception as e:
-            logger.error(f"Error downloading preview key {record.preview_key}: {e}")
+            logger.warning(f"Error downloading preview key {record.preview_key}: {e}")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve preview image from storage."
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="PREVIEW_NOT_FOUND: Preview raster object not found in storage."
             )
 
     @classmethod

@@ -35,7 +35,9 @@ interface MatrixData {
       dataset: string;
       model: string;
       metrics: Record<string, number>;
-      latency_ms: number;
+      latency_ms?: number;
+      status?: string;
+      reason?: string;
     }
   >;
   agent?: {

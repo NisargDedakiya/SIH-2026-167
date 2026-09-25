@@ -23,7 +23,14 @@ function SingleImageCard({ image, role = "primary", onRemove }: { image: any; ro
       ? "SAR Microwave Source"
       : "Primary Input";
 
-  const isGeo = image.is_geospatial || !!image.geospatial?.crs || !!image.crs;
+  const epsg = image.geospatial?.epsg || image.epsg || image.epsg_code;
+  const crs = epsg
+    ? `EPSG:${epsg}`
+    : (image.geospatial?.crs || image.crs || "Pixel Frame");
+  const isGeo = Boolean(
+    image.geospatial?.is_geospatial ??
+    (image.is_geospatial || epsg || image.geospatial?.crs || image.crs)
+  );
   const filename = image.filename || image.original_filename || "satellite_scene.tif";
   const modality = (image.modality || image.sensor_type || "optical").toUpperCase();
   const sensor = image.metadata?.sensor || image.sensor;
@@ -31,8 +38,8 @@ function SingleImageCard({ image, role = "primary", onRemove }: { image: any; ro
   const width = image.raster?.width ?? image.width ?? (Array.isArray(image.dimensions) ? image.dimensions[0] : 512);
   const height = image.raster?.height ?? image.height ?? (Array.isArray(image.dimensions) ? image.dimensions[1] : 512);
   const bands = image.raster?.bands ?? image.channels ?? image.bands ?? 3;
-  const crs = image.geospatial?.crs ? (image.geospatial.epsg ? `EPSG:${image.geospatial.epsg}` : image.geospatial.crs) : image.crs || "Pixel Frame";
-  const gsd = image.geospatial?.resolution_x ?? image.gsd_meters;
+  const resX = image.geospatial?.resolution?.x ?? image.resolution_x ?? image.geospatial?.resolution_x ?? image.gsd_meters;
+  const gsd = resX !== undefined && resX !== null ? `${Number(resX).toFixed(2)} m/px` : "N/A";
 
   return (
     <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 shadow-sm space-y-3 relative group">
@@ -84,7 +91,7 @@ function SingleImageCard({ image, role = "primary", onRemove }: { image: any; ro
         <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
           <span className="text-[10px] text-slate-500 uppercase font-mono block">Resolution (GSD)</span>
           <span className="font-medium text-slate-200 block font-mono">
-            {gsd ? `${Number(gsd).toFixed(2)} m/px` : "10.0 m (nom.)"}
+            {gsd}
           </span>
         </div>
       </div>

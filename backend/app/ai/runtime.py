@@ -84,11 +84,11 @@ class ModelRuntime:
             cross_modal_mock = MockCrossModalModel()
 
             self.registry.register(adapted_vqa_mock, default_for_task=True)
-            self.registry.register(vqa_mock, default_for_task=False)
-            self.registry.register(caption_mock, default_for_task=True)
-            self.registry.register(grounding_mock, default_for_task=True)
-            self.registry.register(change_mock, default_for_task=True)
-            self.registry.register(cross_modal_mock, default_for_task=True)
+            self.registry.register(vqa_mock, default_for_task=False, aliases=["remote-sensing-vqa"])
+            self.registry.register(caption_mock, default_for_task=True, aliases=["remote-sensing-caption"])
+            self.registry.register(grounding_mock, default_for_task=True, aliases=["remote-sensing-grounding"])
+            self.registry.register(change_mock, default_for_task=True, aliases=["remote-sensing-change", "remote-sensing-siam-diff"])
+            self.registry.register(cross_modal_mock, default_for_task=True, aliases=["remote-sensing-cross-modal", "optical-sar-fusion-baseline"])
         else:
             logger.info("Initializing ModelRuntime with Remote-Sensing Specialist Models.")
             # Phase 7: Domain-adapted model satquery-rs-v1 is default for remote-sensing VQA
@@ -103,8 +103,8 @@ class ModelRuntime:
             self.registry.register(vqa_model, default_for_task=False)
             self.registry.register(caption_model, default_for_task=True)
             self.registry.register(grounding_model, default_for_task=True)
-            self.registry.register(change_model, default_for_task=True)
-            self.registry.register(cross_modal_model, default_for_task=True)
+            self.registry.register(change_model, default_for_task=True, aliases=["remote-sensing-siam-diff"])
+            self.registry.register(cross_modal_model, default_for_task=True, aliases=["optical-sar-fusion-baseline"])
 
             # Also register mock models under distinct names so tests can explicitly target them
             self.registry.register(MockAdaptedVqaModel(), default_for_task=False)
@@ -213,9 +213,10 @@ runtime: Optional[ModelRuntime] = None
 
 def get_model_runtime() -> ModelRuntime:
     global runtime
-    if runtime is None:
-        runtime = ModelRuntime()
-        runtime.initialize_models()
+    if runtime is None or len(runtime.registry.list_models()) == 0:
+        rt = ModelRuntime()
+        rt.initialize_models()
+        runtime = rt
     return runtime
 
 

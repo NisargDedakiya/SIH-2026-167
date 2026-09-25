@@ -10,14 +10,71 @@ import {
   ExternalLink,
   RefreshCw,
   AlertCircle,
+  AlertTriangle,
   Sparkles,
-  MapPin,
-  Calendar,
-  Grid,
 } from "lucide-react";
 import { listImages, getImagePreviewUrl } from "@/lib/api";
 import { ImageInspect } from "@/lib/types";
 import { ImageUploader } from "@/components/image-uploader";
+
+interface RasterPreviewProps {
+  imageId: string;
+  filename: string;
+}
+
+function RasterPreview({ imageId, filename }: RasterPreviewProps) {
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [retryNonce, setRetryNonce] = useState<number>(0);
+
+  const previewUrl = `${getImagePreviewUrl(imageId)}${retryNonce > 0 ? `?retry=${retryNonce}` : ""}`;
+
+  return (
+    <div className="relative aspect-video bg-slate-950 overflow-hidden border-b border-slate-800/80 flex items-center justify-center">
+      {status === "loading" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 z-10">
+          <RefreshCw className="h-5 w-5 text-cyan-400 animate-spin" />
+        </div>
+      )}
+
+      {status === "error" ? (
+        <div className="p-4 text-center space-y-2 z-10">
+          <AlertTriangle className="h-6 w-6 text-amber-400 mx-auto" />
+          <p className="text-[11px] font-semibold text-slate-200">Preview unavailable</p>
+          <p className="text-[10px] text-slate-400 max-w-[200px] mx-auto">
+            The raster preview could not be loaded from storage.
+          </p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setStatus("loading");
+              setRetryNonce((prev) => prev + 1);
+            }}
+            className="inline-flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-medium text-cyan-300 border border-slate-700 transition"
+          >
+            <RefreshCw className="h-3 w-3" />
+            <span>Retry</span>
+          </button>
+        </div>
+      ) : (
+        <img
+          key={previewUrl}
+          src={previewUrl}
+          alt={filename}
+          className={`w-full h-full object-cover group-hover:scale-105 transition duration-300 ${
+            status === "loading" ? "opacity-0" : "opacity-100"
+          }`}
+          onLoad={() => setStatus("success")}
+          onError={() => {
+            console.warn(`[RasterPreview] Preview failed for image ${imageId} (${previewUrl})`);
+            setStatus("error");
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 export default function ImagesCatalogPage() {
   const [images, setImages] = useState<ImageInspect[]>([]);
@@ -45,12 +102,17 @@ export default function ImagesCatalogPage() {
   }, []);
 
   const filteredImages = images.filter((img) => {
+    const epsg = img.geospatial?.epsg;
+    const crs = epsg ? `EPSG:${epsg}` : (img.geospatial?.crs || "");
+    const modality = img.modality || "";
+
     const matchesSearch =
       img.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (img.sensor_type && img.sensor_type.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (img.crs && img.crs.toLowerCase().includes(searchQuery.toLowerCase()));
+      modality.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      crs.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesType = !filterType || img.format.toLowerCase() === filterType.toLowerCase();
+    const matchesType =
+      !filterType || img.format.toLowerCase() === filterType.toLowerCase();
 
     return matchesSearch && matchesType;
   });
@@ -106,7 +168,12 @@ export default function ImagesCatalogPage() {
               Close
             </button>
           </div>
-          <ImageUploader onUploadComplete={() => { fetchImages(); setShowUpload(false); }} />
+          <ImageUploader
+            onUploadComplete={() => {
+              fetchImages();
+              setShowUpload(false);
+            }}
+          />
         </div>
       )}
 
@@ -166,77 +233,97 @@ export default function ImagesCatalogPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredImages.map((img) => (
-            <div
-              key={img.id}
-              className="rounded-2xl bg-surface/50 border border-slate-800 overflow-hidden hover:border-slate-700 transition flex flex-col justify-between group"
-            >
-              {/* Preview Thumbnail */}
-              <div className="relative aspect-video bg-slate-950 overflow-hidden border-b border-slate-800/80">
-                <img
-                  src={getImagePreviewUrl(img.id)}
-                  alt={img.filename}
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                  onError={(e) => {
-                    // Fallback to placeholder on broken preview
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
-                <div className="absolute top-2 left-2">
-                  <span className="px-2 py-0.5 rounded bg-slate-900/90 backdrop-blur-sm text-cyan-300 font-mono text-[10px] border border-cyan-800/50">
-                    {img.format.toUpperCase()}
-                  </span>
-                </div>
-                <div className="absolute top-2 right-2">
-                  <span className="px-2 py-0.5 rounded bg-slate-900/90 backdrop-blur-sm text-slate-300 font-mono text-[10px] border border-slate-700">
-                    {img.sensor_type || "optical"}
-                  </span>
-                </div>
-              </div>
+          {filteredImages.map((img) => {
+            const hasRaster = !!img.raster;
+            const hasGeospatial = !!img.geospatial;
+            const width = hasRaster ? img.raster.width : null;
+            const height = hasRaster ? img.raster.height : null;
+            const bands = hasRaster ? img.raster.bands : null;
+            const epsg = hasGeospatial ? img.geospatial.epsg : null;
+            const crs = epsg
+              ? `EPSG:${epsg}`
+              : (hasGeospatial && img.geospatial.crs ? img.geospatial.crs : "Unprojected");
+            const resX = img.geospatial?.resolution?.x;
+            const gsd =
+              resX !== undefined && resX !== null
+                ? `${Number(resX).toFixed(2)} m`
+                : "N/A";
+            const modality = (img.modality || "optical").toUpperCase();
 
-              {/* Specs & Details */}
-              <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                <div className="space-y-1">
-                  <h3 className="text-xs font-bold text-white truncate" title={img.filename}>
-                    {img.filename}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400 font-mono pt-1">
-                    <div>
-                      <span className="text-slate-500">Dimensions:</span> {img.width}x{img.height}
-                    </div>
-                    <div>
-                      <span className="text-slate-500">Bands:</span> {img.channels} ch
-                    </div>
-                    <div>
-                      <span className="text-slate-500">CRS:</span> {img.crs || "Unprojected"}
-                    </div>
-                    <div>
-                      <span className="text-slate-500">GSD:</span> {img.gsd_meters ? `${img.gsd_meters.toFixed(2)}m` : "N/A"}
-                    </div>
+            return (
+              <div
+                key={img.id}
+                className="rounded-2xl bg-surface/50 border border-slate-800 overflow-hidden hover:border-slate-700 transition flex flex-col justify-between group"
+              >
+                {/* Preview Thumbnail */}
+                <div className="relative">
+                  <RasterPreview imageId={img.id} filename={img.filename} />
+                  <div className="absolute top-2 left-2">
+                    <span className="px-2 py-0.5 rounded bg-slate-900/90 backdrop-blur-sm text-cyan-300 font-mono text-[10px] border border-cyan-800/50">
+                      {img.format.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="absolute top-2 right-2">
+                    <span className="px-2 py-0.5 rounded bg-slate-900/90 backdrop-blur-sm text-slate-300 font-mono text-[10px] border border-slate-700">
+                      {modality}
+                    </span>
                   </div>
                 </div>
 
-                {/* Card Actions */}
-                <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                  <Link
-                    href={`/images/${img.id}`}
-                    className="text-xs text-slate-400 hover:text-slate-200 transition inline-flex items-center"
-                  >
-                    <span>Metadata</span>
-                    <ExternalLink className="h-3 w-3 ml-1" />
-                  </Link>
+                {/* Specs & Details */}
+                <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-bold text-white truncate" title={img.filename}>
+                      {img.filename}
+                    </h3>
+                    {hasRaster ? (
+                      <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400 font-mono pt-1">
+                        <div>
+                          <span className="text-slate-500">Dimensions:</span>{" "}
+                          <span className="text-slate-200">{width} × {height}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Bands:</span>{" "}
+                          <span className="text-slate-200">{bands}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">CRS:</span>{" "}
+                          <span className="text-slate-200">{crs}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">GSD:</span>{" "}
+                          <span className="text-slate-200">{gsd}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-2 text-[11px] font-mono text-amber-400">
+                        Metadata unavailable
+                      </div>
+                    )}
+                  </div>
 
-                  <Link
-                    href={`/analyze?image_id=${img.id}`}
-                    className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs transition"
-                  >
-                    <span>Analyze</span>
-                    <ArrowRight className="h-3 w-3" />
-                  </Link>
+                  {/* Card Actions */}
+                  <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                    <Link
+                      href={`/images/${img.id}`}
+                      className="text-xs text-slate-400 hover:text-slate-200 transition inline-flex items-center"
+                    >
+                      <span>Metadata</span>
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </Link>
+
+                    <Link
+                      href={`/analyze?image_id=${img.id}`}
+                      className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs transition"
+                    >
+                      <span>Analyze</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
