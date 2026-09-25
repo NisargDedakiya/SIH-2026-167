@@ -96,17 +96,22 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     req_id = request_id_ctx.get() or request.headers.get("X-Request-ID", str(uuid.uuid4()))
     if isinstance(exc.detail, dict):
         code = exc.detail.get("code") or (
-            "MODEL_UNAVAILABLE" if exc.status_code == 503
+            "IMAGE_OBJECT_MISSING" if exc.status_code == 409
+            else ("MODEL_UNAVAILABLE" if exc.status_code == 503
             else ("VALIDATION_ERROR" if exc.status_code in (400, 422)
             else ("RESOURCE_NOT_FOUND" if exc.status_code == 404
-            else "HTTP_ERROR"))
+            else "HTTP_ERROR")))
         )
         msg = exc.detail.get("message") or exc.detail.get("detail") or "An HTTP error occurred."
         details = exc.detail.get("details", {})
+        if "suggested_action" in exc.detail:
+            details["suggested_action"] = exc.detail["suggested_action"]
     else:
         msg = str(exc.detail) if exc.detail else "An HTTP error occurred."
         detail_lower = msg.lower()
-        if exc.status_code == 503:
+        if exc.status_code == 409 or "storage" in detail_lower or "missing" in detail_lower:
+            code = "IMAGE_OBJECT_MISSING"
+        elif exc.status_code == 503:
             code = "DATABASE_SCHEMA_MISMATCH" if ("database" in detail_lower or "schema" in detail_lower) else "MODEL_UNAVAILABLE"
         elif exc.status_code in (400, 422):
             code = "UNSUPPORTED_MODALITY" if "modality" in detail_lower else "VALIDATION_ERROR"

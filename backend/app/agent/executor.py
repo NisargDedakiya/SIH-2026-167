@@ -12,8 +12,15 @@ from fastapi import HTTPException, status
 from app.agent.exceptions import PlanExecutionError
 from app.agent.schemas import WorkflowPlanSchema
 from app.agent.trace import ExecutionTrace
-from app.ai.exceptions import AIError, InferenceError, ModelUnavailableError, UnsupportedModalityError
+from app.ai.exceptions import (
+    AIError,
+    InferenceError,
+    ModelExecutionError,
+    ModelUnavailableError,
+    UnsupportedModalityError,
+)
 from app.core.logging import logger
+from app.storage.exceptions import StorageObjectNotFoundError
 from app.tools.registry import ToolRegistry, get_tool_registry
 
 
@@ -183,6 +190,70 @@ class ToolExecutor:
                         "code": "MODEL_EXECUTION_FAILURE",
                         "message": f"Inference execution failed on tool '{tool.name}': {str(e)}",
                         "details": {"tool": tool.name}
+                    }
+                ) from e
+            except StorageObjectNotFoundError as e:
+                duration_ms = int((time.perf_counter() - step_start) * 1000)
+                logger.error(f"Image backing object missing on tool '{tool.name}': {e}")
+                trace.add_event(
+                    event_type="TOOL_EXECUTED",
+                    tool_name=tool.name,
+                    status="failed",
+                    parameters=step.parameters,
+                    output_metadata={"error": str(e), "code": "IMAGE_OBJECT_MISSING"},
+                    duration_ms=duration_ms
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "code": "IMAGE_OBJECT_MISSING",
+                        "message": str(e),
+                        "details": {
+                            "tool": tool.name,
+                            "image_id": e.image_id,
+                            "object_key": e.object_key,
+                            "storage_status": e.storage_status
+                        },
+                        "suggested_action": "The selected satellite image is registered in the catalog, but its original GeoTIFF is missing from object storage. Please re-upload the image."
+                    }
+                ) from e
+            except ModelExecutionError as e:
+                duration_ms = int((time.perf_counter() - step_start) * 1000)
+                logger.error(f"Model execution error on tool '{tool.name}': {e}", exc_info=True)
+                trace.add_event(
+                    event_type="TOOL_EXECUTED",
+                    tool_name=tool.name,
+                    status="failed",
+                    parameters=step.parameters,
+                    output_metadata={"error": str(e), "code": e.code},
+                    duration_ms=duration_ms
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "code": e.code,
+                        "message": str(e),
+                        "details": {"tool": tool.name, **e.details}
+                    }
+                ) from e
+            except FileNotFoundError as e:
+                duration_ms = int((time.perf_counter() - step_start) * 1000)
+                logger.error(f"Storage file not found on tool '{tool.name}': {e}")
+                trace.add_event(
+                    event_type="TOOL_EXECUTED",
+                    tool_name=tool.name,
+                    status="failed",
+                    parameters=step.parameters,
+                    output_metadata={"error": str(e), "code": "IMAGE_OBJECT_MISSING"},
+                    duration_ms=duration_ms
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "code": "IMAGE_OBJECT_MISSING",
+                        "message": f"Storage object missing: {str(e)}",
+                        "details": {"tool": tool.name},
+                        "suggested_action": "The required satellite raster file is missing from object storage. Please re-upload the image."
                     }
                 ) from e
             except PlanExecutionError as e:

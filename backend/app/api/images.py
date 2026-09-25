@@ -78,6 +78,18 @@ async def validate_image(
 
 
 @router.get(
+    "/{image_id}/storage-status",
+    summary="Check Object Storage Existence",
+    description="Verifies whether the original raster and preview files exist in backing storage."
+)
+async def get_image_storage_status(
+    image_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    return await ImageService.get_storage_status(image_id, db)
+
+
+@router.get(
     "/{image_id}/preview",
     summary="Download Browser-Friendly Preview",
     description="Returns the rendered, normalized, downsampled PNG preview of the satellite image."

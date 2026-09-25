@@ -21,6 +21,7 @@ from app.ai.exceptions import (
 from app.ai.runtime import get_model_runtime
 from app.core.logging import logger
 from app.database.models import AnalysisJobModel, ImageModel
+from app.storage.exceptions import StorageObjectNotFoundError
 from app.storage.object_store import get_object_store
 
 
@@ -109,6 +110,17 @@ class AnalysisService:
             await db.flush()
 
             store = get_object_store()
+            if not image_record.object_key or not await store.exists(image_record.object_key):
+                raise StorageObjectNotFoundError(
+                    message=(
+                        f"Satellite image '{image_record.original_filename or image_id}' is registered in the catalog, "
+                        f"but its original GeoTIFF is missing from object storage ({image_record.object_key})."
+                    ),
+                    image_id=str(image_id),
+                    object_key=image_record.object_key,
+                    storage_status="MISSING"
+                )
+
             image_bytes = await store.download_bytes(image_record.object_key)
 
             # Stage: RUNNING (Inference on target device)
@@ -164,6 +176,24 @@ class AnalysisService:
                 "fallback": result_contract.get("fallback"),
             }
 
+        except StorageObjectNotFoundError as e:
+            job.status = "failed"
+            job.error = str(e)
+            job.completed_at = datetime.datetime.now(datetime.timezone.utc)
+            await db.flush()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "IMAGE_OBJECT_MISSING",
+                    "message": str(e),
+                    "image_id": e.image_id,
+                    "object_key": e.object_key,
+                    "storage_status": e.storage_status,
+                    "suggested_action": "The selected satellite image is registered in the catalog, but its original GeoTIFF is missing from object storage. Please re-upload the image."
+                }
+            )
+        except HTTPException:
+            raise
         except UnsupportedModalityError as e:
             job.status = "failed"
             job.error = str(e)

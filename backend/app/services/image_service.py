@@ -1,7 +1,7 @@
 import hashlib
 import time
 import uuid
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -223,12 +223,57 @@ class ImageService:
         )
 
     @classmethod
+    async def get_storage_status(cls, image_id: uuid.UUID, db: AsyncSession) -> Dict[str, Any]:
+        """
+        Validates presence of backing original GeoTIFF and preview raster in object storage.
+        Returns AVAILABLE, MISSING, or ERROR status.
+        """
+        stmt = select(ImageModel).where(ImageModel.id == image_id)
+        result = await db.execute(stmt)
+        record = result.scalar_one_or_none()
+        if not record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Image with ID {image_id} not found."
+            )
+
+        store = get_object_store()
+        try:
+            original_exists = await store.exists(record.object_key) if record.object_key else False
+            preview_exists = await store.exists(record.preview_key) if record.preview_key else False
+            status_val = "AVAILABLE" if original_exists else "MISSING"
+            return {
+                "image_id": str(record.id),
+                "filename": record.original_filename,
+                "object_key": record.object_key,
+                "status": status_val,
+                "original_exists": original_exists,
+                "preview_exists": preview_exists,
+            }
+        except Exception as e:
+            logger.error(f"Error checking storage status for image {image_id}: {e}")
+            return {
+                "image_id": str(record.id),
+                "filename": record.original_filename,
+                "object_key": record.object_key,
+                "status": "ERROR",
+                "error": str(e)
+            }
+
+    @classmethod
     async def validate_image(cls, image_id: uuid.UUID, db: AsyncSession) -> ImageValidationResponse:
         inspect = await cls.get_inspect_response(image_id, db)
+        storage_info = await cls.get_storage_status(image_id, db)
+        errors = list(inspect.validation.errors)
+        is_valid = inspect.validation.valid
+        if storage_info.get("status") != "AVAILABLE":
+            is_valid = False
+            errors.append(f"IMAGE_OBJECT_MISSING: Original raster file is missing from object storage ({storage_info.get('object_key')}).")
+
         return ImageValidationResponse(
-            valid=inspect.validation.valid,
+            valid=is_valid,
             warnings=inspect.validation.warnings,
-            errors=inspect.validation.errors,
+            errors=errors,
             metadata=inspect
         )
 

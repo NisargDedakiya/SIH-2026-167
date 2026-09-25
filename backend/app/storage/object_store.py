@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 from app.core.config import get_settings
 from app.core.logging import logger
+from app.storage.exceptions import StorageObjectNotFoundError
 
 settings = get_settings()
 
@@ -59,7 +60,7 @@ class LocalObjectStore(ObjectStore):
     async def download_bytes(self, key: str) -> bytes:
         file_path = self._resolve_path(key)
         if not file_path.exists():
-            raise FileNotFoundError(f"Storage key not found: {key}")
+            raise StorageObjectNotFoundError(f"Storage key not found: {key}", object_key=key)
         with open(file_path, "rb") as f:
             return f.read()
 
@@ -109,12 +110,18 @@ class MinIOObjectStore(ObjectStore):
         return key
 
     async def download_bytes(self, key: str) -> bytes:
-        response = self.client.get_object(self.bucket, key)
         try:
-            return response.read()
-        finally:
-            response.close()
-            response.release_conn()
+            response = self.client.get_object(self.bucket, key)
+            try:
+                return response.read()
+            finally:
+                response.close()
+                response.release_conn()
+        except Exception as e:
+            err_str = str(e)
+            if "NoSuchKey" in err_str or getattr(e, "code", "") in ("NoSuchKey", "ResourceNotFound"):
+                raise StorageObjectNotFoundError(f"Storage key not found: {key}", object_key=key) from e
+            raise
 
     async def delete_object(self, key: str) -> bool:
         self.client.remove_object(self.bucket, key)

@@ -30,6 +30,7 @@ from app.cross_modal.schemas import (
 from app.cross_modal.validator import CrossModalValidator
 from app.database.models import AnalysisJobModel, EvidenceModel, ImageModel
 from app.database.session import async_session_factory
+from app.storage.exceptions import StorageObjectNotFoundError
 from app.storage.object_store import get_object_store
 
 
@@ -125,6 +126,16 @@ class CrossModalPairService:
                 optical_modality=pair.optical_modality,
                 sar_modality=pair.sar_modality,
             )
+
+            # Validate backing storage availability
+            storage = get_object_store()
+            opt_ok = await storage.exists(opt_img.object_key) if (opt_img and opt_img.object_key) else False
+            sar_ok = await storage.exists(sar_img.object_key) if (sar_img and sar_img.object_key) else False
+            if not (opt_ok and sar_ok):
+                val_result.valid = False
+                val_result.status_code = "INVALID_STORAGE"
+                val_result.message = "One or both images in this optical-SAR pair are missing from object storage."
+
             return self._build_pair_response(pair, opt_img, sar_img, val_result)
 
     async def list_pairs(
@@ -134,6 +145,7 @@ class CrossModalPairService:
         db: Optional[AsyncSession] = None
     ) -> List[OpticalSARPairResponse]:
         """Lists registered OpticalSARPairs with pagination."""
+        storage = get_object_store()
         async with self._ensure_session(db) as session:
             stmt = select(OpticalSARPairModel).order_by(OpticalSARPairModel.created_at.desc()).limit(limit).offset(offset)
             res = await session.execute(stmt)
@@ -156,6 +168,13 @@ class CrossModalPairService:
                     optical_modality=pair.optical_modality,
                     sar_modality=pair.sar_modality,
                 )
+                opt_ok = await storage.exists(opt_img.object_key) if (opt_img and opt_img.object_key) else False
+                sar_ok = await storage.exists(sar_img.object_key) if (sar_img and sar_img.object_key) else False
+                if not (opt_ok and sar_ok):
+                    val_result.valid = False
+                    val_result.status_code = "INVALID_STORAGE"
+                    val_result.message = "One or both images in this optical-SAR pair are missing from object storage."
+
                 responses.append(self._build_pair_response(pair, opt_img, sar_img, val_result))
             return responses
 
@@ -182,6 +201,42 @@ class CrossModalPairService:
 
             opt_img = await session.get(ImageModel, pair.optical_image_id)
             sar_img = await session.get(ImageModel, pair.sar_image_id)
+
+            if not opt_img:
+                raise StorageObjectNotFoundError(
+                    message=f"Optical image '{pair.optical_image_id}' for pair '{pair_id}' not found in database.",
+                    image_id=str(pair.optical_image_id),
+                    storage_status="MISSING"
+                )
+            if not sar_img:
+                raise StorageObjectNotFoundError(
+                    message=f"SAR image '{pair.sar_image_id}' for pair '{pair_id}' not found in database.",
+                    image_id=str(pair.sar_image_id),
+                    storage_status="MISSING"
+                )
+
+            # Validate backing object existence in storage
+            if not opt_img.object_key or not await storage.exists(opt_img.object_key):
+                raise StorageObjectNotFoundError(
+                    message=(
+                        f"Optical image '{opt_img.original_filename or opt_img.id}' is registered in the catalog, "
+                        f"but its original GeoTIFF is missing from object storage ({opt_img.object_key})."
+                    ),
+                    image_id=str(opt_img.id),
+                    object_key=opt_img.object_key,
+                    storage_status="MISSING"
+                )
+
+            if not sar_img.object_key or not await storage.exists(sar_img.object_key):
+                raise StorageObjectNotFoundError(
+                    message=(
+                        f"SAR image '{sar_img.original_filename or sar_img.id}' is registered in the catalog, "
+                        f"but its original GeoTIFF is missing from object storage ({sar_img.object_key})."
+                    ),
+                    image_id=str(sar_img.id),
+                    object_key=sar_img.object_key,
+                    storage_status="MISSING"
+                )
 
             opt_bytes = await storage.download_bytes(opt_img.object_key)
             sar_bytes = await storage.download_bytes(sar_img.object_key)

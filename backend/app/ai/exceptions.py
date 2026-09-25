@@ -40,3 +40,12 @@ class AdapterArchitectureMismatchError(AIError):
         self.missing_keys = missing_keys or []
         self.unexpected_keys = unexpected_keys or []
 
+
+class ModelExecutionError(AIError):
+    """Raised when model inference or postprocessing encounters execution incompatibility."""
+    def __init__(self, message: str, code: str = "MODEL_EXECUTION_FAILURE", details: dict = None):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.details = details or {}
+

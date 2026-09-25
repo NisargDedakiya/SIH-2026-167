@@ -16,6 +16,7 @@ from app.core.logging import logger
 from app.database.models import AnalysisJobModel, BiTemporalPairModel, EvidenceModel, ImageModel
 from app.database.session import async_session_factory
 from app.evidence.geometry import pixel_bbox_to_geo_bounds
+from app.storage.exceptions import StorageObjectNotFoundError
 from app.storage.object_store import get_object_store
 from app.temporal.alignment import AlignmentEngine
 from app.temporal.change_map import ChangeMap
@@ -130,6 +131,15 @@ class TemporalPairService:
                 message="Pair retrieved from database."
             )
 
+            # Validate backing storage availability
+            storage = get_object_store()
+            t1_ok = await storage.exists(img_t1.object_key) if (img_t1 and img_t1.object_key) else False
+            t2_ok = await storage.exists(img_t2.object_key) if (img_t2 and img_t2.object_key) else False
+            if not (t1_ok and t2_ok):
+                val_result.valid = False
+                val_result.status_code = "INVALID_STORAGE"
+                val_result.message = "One or both images in this temporal pair are missing from object storage."
+
             return self._build_pair_response(pair, img_t1, img_t2, val_result)
 
     async def list_pairs(
@@ -141,6 +151,7 @@ class TemporalPairService:
         """
         Lists registered bi-temporal pairs ordered chronologically descending.
         """
+        storage = get_object_store()
         async with self._ensure_session(db) as session:
             stmt = (
                 select(BiTemporalPairModel)
@@ -163,6 +174,13 @@ class TemporalPairService:
                     status_code="LOADED",
                     message="Pair retrieved from database."
                 )
+                t1_ok = await storage.exists(img_t1.object_key) if (img_t1 and img_t1.object_key) else False
+                t2_ok = await storage.exists(img_t2.object_key) if (img_t2 and img_t2.object_key) else False
+                if not (t1_ok and t2_ok):
+                    val_result.valid = False
+                    val_result.status_code = "INVALID_STORAGE"
+                    val_result.message = "One or both images in this temporal pair are missing from object storage."
+
                 results.append(self._build_pair_response(pair, img_t1, img_t2, val_result))
 
             return results
@@ -191,6 +209,42 @@ class TemporalPairService:
 
             img_t1 = await session.get(ImageModel, pair.image_t1_id)
             img_t2 = await session.get(ImageModel, pair.image_t2_id)
+
+            if not img_t1:
+                raise StorageObjectNotFoundError(
+                    message=f"T1 image '{pair.image_t1_id}' for pair '{pair_id}' not found in database.",
+                    image_id=str(pair.image_t1_id),
+                    storage_status="MISSING"
+                )
+            if not img_t2:
+                raise StorageObjectNotFoundError(
+                    message=f"T2 image '{pair.image_t2_id}' for pair '{pair_id}' not found in database.",
+                    image_id=str(pair.image_t2_id),
+                    storage_status="MISSING"
+                )
+
+            # Validate backing object existence in storage
+            if not img_t1.object_key or not await storage.exists(img_t1.object_key):
+                raise StorageObjectNotFoundError(
+                    message=(
+                        f"Temporal T1 image '{img_t1.original_filename or img_t1.id}' is registered in the catalog, "
+                        f"but its original GeoTIFF is missing from object storage ({img_t1.object_key})."
+                    ),
+                    image_id=str(img_t1.id),
+                    object_key=img_t1.object_key,
+                    storage_status="MISSING"
+                )
+
+            if not img_t2.object_key or not await storage.exists(img_t2.object_key):
+                raise StorageObjectNotFoundError(
+                    message=(
+                        f"Temporal T2 image '{img_t2.original_filename or img_t2.id}' is registered in the catalog, "
+                        f"but its original GeoTIFF is missing from object storage ({img_t2.object_key})."
+                    ),
+                    image_id=str(img_t2.id),
+                    object_key=img_t2.object_key,
+                    storage_status="MISSING"
+                )
 
             t1_bytes = await storage.download_bytes(img_t1.object_key)
             t2_bytes = await storage.download_bytes(img_t2.object_key)

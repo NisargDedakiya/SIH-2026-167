@@ -9,7 +9,12 @@ from typing import Any, Dict, List, Optional
 from PIL import Image
 
 from app.ai.base import SpecialistModel
-from app.ai.exceptions import InferenceError, ModelUnavailableError, UnsupportedModalityError
+from app.ai.exceptions import (
+    InferenceError,
+    ModelExecutionError,
+    ModelUnavailableError,
+    UnsupportedModalityError,
+)
 from app.ai.preprocessing import RemoteSensingPreprocessor
 from app.core.logging import logger
 
@@ -25,8 +30,8 @@ class RsGroundingModel(SpecialistModel):
     task = "grounding"
     supported_modalities = ["optical", "multispectral", "unknown"]
 
-    def __init__(self, model_id: str = "google/owlvit-base-patch32"):
-        self.model_id = model_id
+    def __init__(self, model_id: str = "google/owlvit-base-patch32", model_path: Optional[str] = None):
+        self.model_id = model_path or model_id
         self._processor = None
         self._model = None
         self._device = "cpu"
@@ -110,29 +115,17 @@ class RsGroundingModel(SpecialistModel):
 
             # Target image sizes (height, width)
             target_sizes = torch.Tensor([[orig_h, orig_w]]).to(self._device)
-            results = self._processor.post_process_object_detection(
+            text_labels = [[clean_text]]
+            threshold = 0.15
+
+            regions = self._post_process_results(
                 outputs=outputs,
-                threshold=0.15,
-                target_sizes=target_sizes
-            )[0]
-
-            boxes = results["boxes"].cpu().numpy()
-            scores = results["scores"].cpu().numpy()
-
-            regions = []
-            for box, score in zip(boxes, scores):
-                x1, y1, x2, y2 = box.tolist()
-                # Normalize to 0..1
-                norm_x1 = max(0.0, min(1.0, round(x1 / orig_w, 4)))
-                norm_y1 = max(0.0, min(1.0, round(y1 / orig_h, 4)))
-                norm_x2 = max(norm_x1 + 0.01, min(1.0, round(x2 / orig_w, 4)))
-                norm_y2 = max(norm_y1 + 0.01, min(1.0, round(y2 / orig_h, 4)))
-
-                regions.append({
-                    "label": clean_text,
-                    "confidence": round(float(score), 4),
-                    "bbox": [norm_x1, norm_y1, norm_x2, norm_y2]
-                })
+                target_sizes=target_sizes,
+                text_queries=[clean_text],
+                threshold=threshold,
+                orig_w=orig_w,
+                orig_h=orig_h
+            )
 
             # Sort by confidence descending
             regions.sort(key=lambda r: r["confidence"], reverse=True)
@@ -165,9 +158,106 @@ class RsGroundingModel(SpecialistModel):
                 "evidence": top_regions
             }
 
+        except ModelExecutionError:
+            raise
         except Exception as e:
             logger.error(f"Grounding inference failed on '{clean_text}': {e}", exc_info=True)
             raise InferenceError(f"Grounding prediction error: {str(e)}") from e
+
+    def _post_process_results(
+        self,
+        outputs: Any,
+        target_sizes: Any,
+        text_queries: List[str],
+        threshold: float = 0.15,
+        orig_w: Optional[int] = None,
+        orig_h: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Compatibility post-processing layer supporting transformers 5.x, 4.x, and image_processor fallbacks.
+        Normalizes bounding box coordinates and validates bounds.
+        """
+        if orig_w is None or orig_h is None:
+            if hasattr(target_sizes, "tolist"):
+                ts = target_sizes.tolist()
+                orig_h, orig_w = int(ts[0][0]), int(ts[0][1])
+            else:
+                orig_h, orig_w = int(target_sizes[0][0]), int(target_sizes[0][1])
+
+        # Prepare text labels
+        first_query = text_queries[0] if text_queries else "object"
+        if isinstance(text_queries, list) and text_queries and isinstance(text_queries[0], list):
+            nested_text_labels = text_queries
+        else:
+            nested_text_labels = [text_queries]
+
+        if hasattr(self._processor, "post_process_grounded_object_detection"):
+            results = self._processor.post_process_grounded_object_detection(
+                outputs=outputs,
+                threshold=threshold,
+                target_sizes=target_sizes,
+                text_labels=nested_text_labels
+            )[0]
+        elif hasattr(self._processor, "post_process_object_detection"):
+            results = self._processor.post_process_object_detection(
+                outputs=outputs,
+                threshold=threshold,
+                target_sizes=target_sizes
+            )[0]
+        elif hasattr(getattr(self._processor, "image_processor", None), "post_process_object_detection"):
+            results = self._processor.image_processor.post_process_object_detection(
+                outputs=outputs,
+                threshold=threshold,
+                target_sizes=target_sizes
+            )[0]
+        else:
+            raise ModelExecutionError(
+                code="GROUNDING_POSTPROCESS_UNSUPPORTED",
+                message="Installed OWL-ViT processor does not expose a supported post-processing API."
+            )
+
+        boxes = results["boxes"].cpu().numpy() if hasattr(results["boxes"], "cpu") else np.array(results["boxes"])
+        scores = results["scores"].cpu().numpy() if hasattr(results["scores"], "cpu") else np.array(results["scores"])
+        detected_labels = results.get("text_labels", [first_query] * len(boxes))
+
+        regions = []
+        for i, (box, score) in enumerate(zip(boxes, scores)):
+            x1, y1, x2, y2 = box.tolist() if hasattr(box, "tolist") else list(box)
+            # Ensure x1 < x2 and y1 < y2
+            if x1 > x2:
+                x1, x2 = x2, x1
+            if y1 > y2:
+                y1, y2 = y2, y1
+
+            # Clamp pixel coords within image dimensions
+            px_x1 = max(0.0, min(float(orig_w), x1))
+            px_y1 = max(0.0, min(float(orig_h), y1))
+            px_x2 = max(px_x1 + 1.0, min(float(orig_w), x2))
+            px_y2 = max(px_y1 + 1.0, min(float(orig_h), y2))
+
+            # Normalize to 0..1 for standard contract
+            norm_x1 = max(0.0, min(1.0, round(px_x1 / orig_w, 4)))
+            norm_y1 = max(0.0, min(1.0, round(px_y1 / orig_h, 4)))
+            norm_x2 = max(norm_x1, min(1.0, round(px_x2 / orig_w, 4)))
+            norm_y2 = max(norm_y1, min(1.0, round(px_y2 / orig_h, 4)))
+
+            lbl = detected_labels[i] if i < len(detected_labels) else first_query
+
+            regions.append({
+                "label": str(lbl) if lbl else first_query,
+                "confidence": round(float(score), 4),
+                "bbox": [norm_x1, norm_y1, norm_x2, norm_y2],
+                "pixel_geometry": {
+                    "x1": int(round(px_x1)),
+                    "y1": int(round(px_y1)),
+                    "x2": int(round(px_x2)),
+                    "y2": int(round(px_y2)),
+                    "width": int(round(px_x2 - px_x1)),
+                    "height": int(round(px_y2 - px_y1))
+                }
+            })
+
+        return regions
 
     @staticmethod
     def _extract_referring_phrase(query: str) -> str:
@@ -195,3 +285,8 @@ class RsGroundingModel(SpecialistModel):
         if isinstance(raw_output, dict) and "evidence" in raw_output:
             return raw_output["evidence"]
         return []
+
+
+# Alias for compatibility
+RSGroundingAdapter = RsGroundingModel
+

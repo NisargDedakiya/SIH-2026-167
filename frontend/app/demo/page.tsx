@@ -59,6 +59,10 @@ interface DemoErrorState {
   traceId?: string;
   message: string;
   suggestedAction: string;
+  imageId?: string;
+  objectKey?: string;
+  filename?: string;
+  storageStatus?: string;
 }
 
 const DEMO_SCENARIOS: DemoScenario[] = [
@@ -164,13 +168,23 @@ export default function DemoHubPage() {
       // Step 2: Validate scenario prerequisites and select inputs
       if (selectedDemo.id === "demo-1" || selectedDemo.id === "demo-2") {
         // Single image optical/multispectral
-        const validOptical = imagesList.find(
-          (img) =>
-            img.validation?.valid !== false &&
-            (img.modality === "optical" || img.modality === "multispectral" || !img.modality)
-        ) || imagesList[0];
+        let targetOptical = null;
+        if (selectedDemo.id === "demo-2") {
+          targetOptical = imagesList.find(
+            (img) =>
+              (img.filename.toLowerCase().includes("grounding") || img.filename.toLowerCase().includes("demo_grounding")) &&
+              img.validation?.valid !== false
+          );
+        }
+        if (!targetOptical) {
+          targetOptical = imagesList.find(
+            (img) =>
+              img.validation?.valid !== false &&
+              (img.modality === "optical" || img.modality === "multispectral" || !img.modality)
+          ) || imagesList[0];
+        }
 
-        if (!validOptical) {
+        if (!targetOptical) {
           setErrorDetails({
             step: "Input Validation",
             message: "Demo input unavailable: No valid optical or multispectral image was found.",
@@ -182,7 +196,7 @@ export default function DemoHubPage() {
 
         currentStep = "Agent Execution";
         currentEndpoint = "/api/v1/agent/analyze";
-        const res = await analyzeAgentMulti([validOptical.id], activeQuery);
+        const res = await analyzeAgentMulti([targetOptical.id], activeQuery);
         setAnalysisResult(res);
       } else if (selectedDemo.id === "demo-3") {
         // Bi-Temporal Change Detection
@@ -193,10 +207,14 @@ export default function DemoHubPage() {
         let imageIdsToUse: string[] = [];
 
         try {
-          const registeredPairs = await listTemporalPairs(10);
+          const registeredPairs = await listTemporalPairs(20);
           if (registeredPairs && registeredPairs.length > 0) {
-            pairIdToUse = registeredPairs[0].pair_id;
-            imageIdsToUse = [registeredPairs[0].image_t1.id, registeredPairs[0].image_t2.id];
+            // Pick a pair whose underlying images have valid storage
+            const validPair = registeredPairs.find(
+              (p) => p.validation?.valid !== false && p.validation?.status_code !== "INVALID_STORAGE"
+            ) || registeredPairs[0];
+            pairIdToUse = validPair.pair_id;
+            imageIdsToUse = [validPair.image_t1.id, validPair.image_t2.id];
           }
         } catch (_) {
           // Fall back to image catalog pair detection
@@ -204,15 +222,15 @@ export default function DemoHubPage() {
 
         if (!pairIdToUse) {
           // Look for t1 and t2 in filenames with matching CRS or overlapping dimensions
-          const t1 = imagesList.find((i) => i.filename.toLowerCase().includes("t1"));
-          const t2 = imagesList.find((i) => i.filename.toLowerCase().includes("t2"));
+          const t1 = imagesList.find((i) => i.filename.toLowerCase().includes("t1") && i.validation?.valid !== false);
+          const t2 = imagesList.find((i) => i.filename.toLowerCase().includes("t2") && i.validation?.valid !== false);
 
           if (t1 && t2 && t1.id !== t2.id) {
             imageIdsToUse = [t1.id, t2.id];
           } else {
             // Find two optical images with identical dimensions and compatible CRS
             const opticalImages = imagesList.filter(
-              (i) => i.modality === "optical" || i.modality === "multispectral" || !i.modality
+              (i) => (i.modality === "optical" || i.modality === "multispectral" || !i.modality) && i.validation?.valid !== false
             );
             for (let i = 0; i < opticalImages.length; i++) {
               for (let j = i + 1; j < opticalImages.length; j++) {
@@ -257,12 +275,16 @@ export default function DemoHubPage() {
         let optSarImageIds: string[] = [];
 
         try {
-          const registeredCrossPairs = await listOpticalSARPairs(10);
+          const registeredCrossPairs = await listOpticalSARPairs(20);
           if (registeredCrossPairs && registeredCrossPairs.length > 0) {
-            optSarPairId = registeredCrossPairs[0].id;
+            // Pick a cross-modal pair whose images exist in storage
+            const validCrossPair = registeredCrossPairs.find(
+              (p) => p.validation?.valid !== false && p.validation?.status_code !== "INVALID_STORAGE"
+            ) || registeredCrossPairs[0];
+            optSarPairId = validCrossPair.id;
             optSarImageIds = [
-              registeredCrossPairs[0].optical_image.id,
-              registeredCrossPairs[0].sar_image.id,
+              validCrossPair.optical_image.id,
+              validCrossPair.sar_image.id,
             ];
           }
         } catch (_) {
@@ -272,15 +294,17 @@ export default function DemoHubPage() {
         if (!optSarPairId) {
           const opt = imagesList.find(
             (i) =>
-              i.modality === "optical" ||
+              (i.modality === "optical" ||
               i.filename.toLowerCase().includes("opt") ||
-              i.filename.toLowerCase().includes("cartosat")
+              i.filename.toLowerCase().includes("cartosat")) &&
+              i.validation?.valid !== false
           );
           const sar = imagesList.find(
             (i) =>
-              i.modality === "sar" ||
+              (i.modality === "sar" ||
               i.filename.toLowerCase().includes("sar") ||
-              i.filename.toLowerCase().includes("risat")
+              i.filename.toLowerCase().includes("risat")) &&
+              i.validation?.valid !== false
           );
 
           if (opt && sar && opt.id !== sar.id) {
@@ -315,9 +339,16 @@ export default function DemoHubPage() {
       const status = isApiErr ? err.status : undefined;
       const code = isApiErr ? err.code : undefined;
       const traceId = isApiErr ? err.traceId : undefined;
+      const details = isApiErr ? err.details : undefined;
 
       let action = "Check backend server status and ensure dependencies are healthy.";
-      if (status === 503 || code === "MODEL_UNAVAILABLE") {
+      let imageId = details?.image_id;
+      let objectKey = details?.object_key;
+      let storageStatus = details?.storage_status || (status === 409 ? "MISSING" : undefined);
+
+      if (status === 409 || code === "IMAGE_OBJECT_MISSING") {
+        action = "Re-upload the image.";
+      } else if (status === 503 || code === "MODEL_UNAVAILABLE") {
         action = "Grounding or specialist model is not available locally. Run 'python scripts/prepare_models.py'.";
       } else if (code === "DATABASE_SCHEMA_MISMATCH") {
         action = "Database schema mismatch detected. Run migrations or restart container with updated schema.";
@@ -333,6 +364,9 @@ export default function DemoHubPage() {
         traceId: traceId,
         message: err?.message || "Failed to execute demonstration analysis.",
         suggestedAction: action,
+        imageId,
+        objectKey,
+        storageStatus,
       });
     } finally {
       setIsRunning(false);
@@ -467,46 +501,98 @@ export default function DemoHubPage() {
 
           {/* Rich Error Diagnostics Panel */}
           {errorDetails && (
-            <div className="p-5 rounded-xl bg-rose-950/30 border border-rose-800/50 text-rose-200 space-y-3">
-              <div className="flex items-center space-x-2 text-sm font-semibold text-rose-300">
-                <AlertCircle className="h-5 w-5 shrink-0 text-rose-400" />
-                <span>Execution Diagnostic Report</span>
+            <div
+              className={`p-5 rounded-xl border space-y-3 ${
+                errorDetails.code === "IMAGE_OBJECT_MISSING" || errorDetails.status === 409
+                  ? "bg-amber-950/40 border-amber-600/60 text-amber-200"
+                  : "bg-rose-950/30 border-rose-800/50 text-rose-200"
+              }`}
+            >
+              <div
+                className={`flex items-center space-x-2 text-sm font-semibold ${
+                  errorDetails.code === "IMAGE_OBJECT_MISSING" || errorDetails.status === 409
+                    ? "text-amber-300"
+                    : "text-rose-300"
+                }`}
+              >
+                <AlertCircle className="h-5 w-5 shrink-0" />
+                <span>
+                  {errorDetails.code === "IMAGE_OBJECT_MISSING" || errorDetails.status === 409
+                    ? "INPUT DATA ERROR"
+                    : "Execution Diagnostic Report"}
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono">
-                <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
-                  <span className="text-slate-500 block text-[10px] uppercase">Step</span>
-                  <span className="text-slate-200 font-semibold">{errorDetails.step}</span>
+              {errorDetails.code === "IMAGE_OBJECT_MISSING" || errorDetails.status === 409 ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-amber-100/90 leading-relaxed font-sans">
+                    The selected satellite image is registered in the catalog, but its original GeoTIFF is missing from object storage.
+                  </p>
+                  <div className="p-3 rounded-lg bg-slate-950/70 border border-amber-800/50 font-mono text-xs space-y-1.5 text-slate-300">
+                    {errorDetails.imageId && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <span className="text-amber-400">Image ID:</span>
+                        <span className="text-slate-200 truncate">{errorDetails.imageId}</span>
+                      </div>
+                    )}
+                    {errorDetails.objectKey && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <span className="text-amber-400">Storage Key:</span>
+                        <span className="text-slate-200 truncate">{errorDetails.objectKey}</span>
+                      </div>
+                    )}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <span className="text-amber-400">Storage:</span>
+                      <span className="text-rose-400 font-bold">MISSING</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <span className="text-amber-400">Action:</span>
+                      <span className="text-emerald-400 font-medium">Re-upload the image.</span>
+                    </div>
+                  </div>
                 </div>
-                {errorDetails.endpoint && (
-                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px] uppercase">Endpoint</span>
-                    <span className="text-slate-200 font-semibold truncate block" title={errorDetails.endpoint}>{errorDetails.endpoint}</span>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono">
+                    <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
+                      <span className="text-slate-500 block text-[10px] uppercase">Step</span>
+                      <span className="text-slate-200 font-semibold">{errorDetails.step}</span>
+                    </div>
+                    {errorDetails.endpoint && (
+                      <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
+                        <span className="text-slate-500 block text-[10px] uppercase">Endpoint</span>
+                        <span className="text-slate-200 font-semibold truncate block" title={errorDetails.endpoint}>
+                          {errorDetails.endpoint}
+                        </span>
+                      </div>
+                    )}
+                    {errorDetails.status !== undefined && (
+                      <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
+                        <span className="text-slate-500 block text-[10px] uppercase">HTTP Status</span>
+                        <span className="text-amber-400 font-semibold">{errorDetails.status}</span>
+                      </div>
+                    )}
+                    {errorDetails.code && (
+                      <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
+                        <span className="text-slate-500 block text-[10px] uppercase">Error Code</span>
+                        <span className="text-rose-400 font-semibold truncate block">{errorDetails.code}</span>
+                      </div>
+                    )}
+                    {errorDetails.traceId && (
+                      <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
+                        <span className="text-slate-500 block text-[10px] uppercase">Trace ID</span>
+                        <span className="text-cyan-400 font-semibold truncate block" title={errorDetails.traceId}>
+                          {errorDetails.traceId}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-                {errorDetails.status !== undefined && (
-                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px] uppercase">HTTP Status</span>
-                    <span className="text-amber-400 font-semibold">{errorDetails.status}</span>
-                  </div>
-                )}
-                {errorDetails.code && (
-                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px] uppercase">Error Code</span>
-                    <span className="text-rose-400 font-semibold truncate block">{errorDetails.code}</span>
-                  </div>
-                )}
-                {errorDetails.traceId && (
-                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px] uppercase">Trace ID</span>
-                    <span className="text-cyan-400 font-semibold truncate block" title={errorDetails.traceId}>{errorDetails.traceId}</span>
-                  </div>
-                )}
-              </div>
 
-              <div className="text-xs text-rose-200/90 leading-relaxed font-sans">
-                <strong>Details:</strong> {errorDetails.message}
-              </div>
+                  <div className="text-xs text-rose-200/90 leading-relaxed font-sans">
+                    <strong>Details:</strong> {errorDetails.message}
+                  </div>
+                </>
+              )}
 
               {errorDetails.suggestedAction && (
                 <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs text-cyan-300 flex items-start space-x-2">
