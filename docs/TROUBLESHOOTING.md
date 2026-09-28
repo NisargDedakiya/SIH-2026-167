@@ -1,80 +1,108 @@
-# SatQuery AI — Production Troubleshooting & Operations Manual
+# SatQuery AI — Practical Troubleshooting Manual
 
-This guide documents diagnostic workflows, known failure modes, and recovery procedures for SatQuery AI.
-
----
-
-## 1. Quick Diagnostics
-
-Verify system readiness using the readiness probe:
-```bash
-curl -s http://localhost:8000/ready | jq
-```
-Expected output:
-```json
-{
-  "status": "ready",
-  "version": "0.1.0",
-  "environment": "production",
-  "services": {
-    "database": "ready",
-    "storage": "ready",
-    "models": "ready (6 registered)",
-    "gpu": "cpu_fallback"
-  }
-}
-```
+**Project:** SatQuery AI  
+**Scope:** Real Runtime Issues, Root Cause Diagnoses, Verified Solutions, and Diagnostic Commands  
 
 ---
 
-## 2. Common Failure Modes & Solutions
+## 1. Issue Matrix
 
-### 2.1 Backend Fails to Start
-- **Symptom:** `uvicorn` terminates with database connection errors.
-- **Cause:** PostgreSQL / PostGIS container is starting up or unreachable.
-- **Solution:**
-  - Verify container status: `docker compose ps`
-  - For local development without Docker, use SQLite fallback:
-    ```bash
-    export DATABASE_URL=sqlite+aiosqlite:///./satquery.db
-    ```
+| Error Code / Symptom | Component | Root Cause | Verified Solution |
+| :--- | :--- | :--- | :--- |
+| `ImportError: DLL load failed while importing _base` | Geospatial Engine (`rasterio`) | Windows Application Control (AppLocker/WDAC) blocks binary `.pyd` on Windows host | Run backend inside Docker container or WSL2. |
+| `DATABASE_SCHEMA_MISMATCH` / `UndefinedColumn` | Database (`ImageModel`) | Existing volume predates 26-column schema; `create_all` does not alter existing tables | Run `alembic upgrade head` or rely on self-healing `init_db()`. |
+| `IMAGE_OBJECT_MISSING` / `409 Conflict` | Storage (`ObjectStore`) | Database record survived while physical raster in MinIO/local storage was deleted | Run `verify_storage_integrity.py` or re-upload raster. |
+| `AttributeError: OwlViTProcessor` | Grounding Model | Transformers v4.38+/v5.x deprecated `post_process_object_detection` | Use 4-stage fallback cascade in `RsGroundingModel`. |
+| `MODEL_UNAVAILABLE` / `503 Service Unavailable` | Specialist Runtime | Checkpoint weights missing or model download blocked by offline network | Run `python scripts/prepare_models.py` to pre-cache models. |
+| `ALIGNMENT_FAILURE` / `400 Bad Request` | Temporal / Cross-Modal | Two satellite images have $< 10\%$ spatial intersection or non-overlapping CRS bounds | Verify geographic coordinates of both rasters. |
+| Status Badge Shows `🔴 Offline` | Frontend App Shell | Frontend was checking deep `/ready` probe instead of lightweight `/health` | Resolved in Phase 10: badge checks `/health` for liveness. |
 
-### 2.2 MinIO Storage Unavailable
-- **Symptom:** Uploads fail with `Failed to upload raster to storage`.
-- **Cause:** MinIO server on port 9000 is stopped or bucket has not initialized.
-- **Solution:**
-  - SatQuery AI features an automatic fallback to local disk storage (`STORAGE_BACKEND=local`).
-  - Configure `LOCAL_STORAGE_PATH=./data/storage` in `.env`.
+---
 
-### 2.3 CUDA Unavailable / CPU Fallback
-- **Symptom:** Models execute on CPU or log `ModelRuntime initialized using device: cpu`.
-- **Cause:** PyTorch cannot find compatible NVIDIA drivers or CUDA toolkit.
-- **Verification:** SatQuery AI automatically detects CUDA availability:
-  ```python
-  import torch
-  print(torch.cuda.is_available())
+## 2. In-Depth Root Cause & Resolutions
+
+### 2.1 Rasterio DLL Blocked on Windows Host (`_base.pyd`)
+- **Symptom:**
+  ```text
+  ImportError while loading conftest:
+  from rasterio._base import DatasetBase
+  ImportError: DLL load failed while importing _base: An Application Control policy has blocked this file.
   ```
-- **Action:** No action required. SatQuery AI features automatic, seamless CPU fallback for all models and adapters.
-
-### 2.4 Upload Failure: Format or Decompression Bomb
-- **Symptom:** HTTP 400 with `Validation failed: File header does not match any recognized format` or `Raster dimensions exceed allowable limit`.
-- **Cause:**
-  - File is an unsupported format or corrupted stream.
-  - Image exceeds $8192 \times 8192$ or $67.1 \text{ M}$ pixels (decompression protection).
+- **Cause:** Modern Windows Enterprise/Education environments enforce Windows Defender Application Control (WDAC) or AppLocker policies that prevent unsigned or user-directory C-extension binaries (`.pyd` DLLs) from executing under Python 3.13 in `AppData\Local`.
 - **Solution:**
-  - Ensure imagery is in standard GeoTIFF (`.tif`), TIFF, PNG, or JPEG.
-  - Sub-sample large regional mosaics before uploading.
+  1. **Primary (Recommended):** Run the backend in Docker:
+     ```bash
+     docker compose up --build backend
+     ```
+     The Linux container (`python:3.11-slim`) compiles and runs `rasterio` and GDAL natively without host OS restrictions.
+  2. **Secondary:** Execute within Windows Subsystem for Linux (WSL2 Ubuntu).
 
-### 2.5 Temporal Alignment Failure
-- **Symptom:** HTTP 400 with `ALIGNMENT_FAILURE: Non-overlapping spatial bounds`.
-- **Cause:** Pre- and post-event images share different regions with zero geographic intersection.
-- **Solution:**
-  - SatQuery AI intentionally fails closed to prevent hallucinating changes between disjoint scenes.
-  - Ensure T1 and T2 rasters share overlapping spatial bounds in a valid coordinate reference system.
+---
 
-### 2.6 Report Generation Fails
-- **Symptom:** HTTP 500 when requesting `/pdf` or `/package`.
-- **Cause:** Missing ReportLab dependency or write permission in artifact cache.
+### 2.2 Database ↔ Storage Drift (`IMAGE_OBJECT_MISSING`)
+- **Symptom:**
+  ```json
+  {
+    "error": {
+      "code": "IMAGE_OBJECT_MISSING",
+      "message": "Storage key not found: images/8f6a7c8b.../original.tif",
+      "details": {"storage_status": "MISSING", "suggested_action": "Re-upload the source raster"}
+    }
+  }
+  ```
+- **Cause:** Persistent database volumes retained historical `images` rows, but the backing MinIO volume or `./data/storage/` folder was wiped or recreated during container maintenance.
 - **Solution:**
-  - Ensure `reportlab` is installed: `pip install reportlab>=4.0.0`.
-  - Check directory permissions on `./artifacts` and `./data/storage`.
+  1. Run the storage integrity verification utility:
+     ```bash
+     python backend/scripts/verify_storage_integrity.py
+     ```
+  2. Delete orphaned records or re-upload the target satellite imagery via `/images/upload`.
+  3. Pre-seed demo assets:
+     ```bash
+     python backend/scripts/seed_demo_assets.py
+     ```
+
+---
+
+### 2.3 OWL-ViT Processor API Evolution
+- **Symptom:**
+  ```text
+  AttributeError: 'OwlViTProcessor' object has no attribute 'post_process_object_detection'
+  ```
+- **Cause:** Hugging Face `transformers` evolved its API. Modern versions use `post_process_grounded_object_detection` with text query labels.
+- **Solution:** `RsGroundingModel._post_process_results()` implements an automated 4-stage introspection cascade:
+  1. Checks for `processor.post_process_grounded_object_detection`
+  2. Falls back to `processor.post_process_object_detection`
+  3. Falls back to `processor.image_processor.post_process_object_detection`
+  4. Explicitly raises `GROUNDING_POSTPROCESS_UNSUPPORTED` if none match.
+
+---
+
+### 2.4 Database Schema Divergence (`alembic` & `init_db`)
+- **Symptom:**
+  ```text
+  UndefinedColumn: column images.acquisition_time does not exist
+  ```
+- **Cause:** SQLAlchemy's `create_all()` never alters existing tables to add newly defined columns.
+- **Solution:**
+  Run the automated migration script:
+  ```bash
+  cd backend
+  alembic upgrade head
+  ```
+  `backend/app/database/session.py` also runs non-destructive `ALTER TABLE images ADD COLUMN IF NOT EXISTS` self-healing queries during startup.
+
+---
+
+### 2.5 CUDA Out-Of-Memory (OOM) or GPU Unavailable
+- **Symptom:**
+  ```text
+  torch.cuda.OutOfMemoryError: CUDA out of memory.
+  ```
+- **Cause:** High-resolution satellite rasters exceed available GPU VRAM.
+- **Solution:**
+  Set `AI_DEVICE=cpu` in `.env` to enforce safe CPU fallback:
+  ```env
+  AI_DEVICE=cpu
+  ```
+  `ModelRuntime` catches CUDA allocation failures and retries on CPU without crashing the FastAPI worker.
